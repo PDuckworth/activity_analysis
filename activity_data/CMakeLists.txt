@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(activity_analysis)
+project(activity_data)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -7,6 +7,8 @@ project(activity_analysis)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  geometry_msgs
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -43,11 +45,10 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+   FILES
+   QSRlibMongo.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -64,10 +65,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-# )
+generate_messages(
+   DEPENDENCIES
+   std_msgs
+   geometry_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -100,8 +102,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES activity_analysis
-#  CATKIN_DEPENDS rospy std_msgs
+#  LIBRARIES activity_data
+   CATKIN_DEPENDS rospy std_msgs geometry_msgs
 #  DEPENDS system_lib
 )
 
@@ -117,24 +119,24 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(activity_analysis
-#   src/${PROJECT_NAME}/activity_analysis.cpp
+# add_library(activity_data
+#   src/${PROJECT_NAME}/activity_data.cpp
 # )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(activity_analysis ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(activity_data ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-# add_executable(activity_analysis_node src/activity_analysis_node.cpp)
+# add_executable(activity_data_node src/activity_data_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(activity_analysis_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(activity_data_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(activity_analysis_node
+# target_link_libraries(activity_data_node
 #   ${catkin_LIBRARIES}
 # )
 
@@ -153,7 +155,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS activity_analysis activity_analysis_node
+# install(TARGETS activity_data activity_data_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -178,7 +180,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_activity_analysis.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_activity_data.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

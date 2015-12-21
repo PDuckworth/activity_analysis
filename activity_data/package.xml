@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>activity_analysis</name>
+  <name>activity_data</name>
   <version>0.0.0</version>
-  <description>The activity_analysis package</description>
+  <description>The activity_data package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/activity_analysis</url> -->
+  <!-- <url type="website">http://wiki.ros.org/activity_data</url> -->
 
 
   <!-- Author tags are optional, mutiple are allowed, one per tag -->
@@ -42,9 +42,13 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>rospy</build_depend>
   <build_depend>std_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>message_generation</build_depend>
+
   <run_depend>rospy</run_depend>
   <run_depend>std_msgs</run_depend>
-
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>message_generation</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

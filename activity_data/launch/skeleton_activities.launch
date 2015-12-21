@@ -1,0 +1,33 @@
+<launch>
+
+    <arg name="which_qsrs" default="string"/>	
+    <arg name="with_mongodb" default="true"/>
+    <arg name="log_world" default="false"/>
+    <arg name="log_qsrs"  default="false"/>
+    <arg name="message_store_prefix" default="people_skeleton"/>
+    <arg name="online_learning" default="false"/>
+
+
+	<!-- Listens to and Logs Skeleton and Object QSR data -->
+	<node pkg="activity_data" type="get_world_state.py" name="get_world_state" output="screen">
+        <param name="which_qsrs" value="$(arg which_qsrs)" type="string"/>
+        <param name="with_mongodb" value="$(arg with_mongodb)" type="bool"/>
+        <param name="log_world" value="$(arg log_world)" type="bool"/>
+        <param name="log_qsrs" value="$(arg log_qsrs)" type="bool"/>
+        <param name="message_store_prefix" value="$(arg message_store_prefix)" type="string"/>
+
+	</node>
+
+
+    <group if="$(arg with_mongodb)">
+		
+    </group>
+
+
+
+    <group if="$(arg online_learning)">
+		
+    </group>
+
+
+</launch>
