@@ -1,0 +1,12 @@
+string uuid
+string which_qsr
+string episodes
+string[] objects
+string igraph
+int32[] histogram
+int64[] code_book
+int32 number_of_detections
+string map_name
+string current_node
+time start_time
+time end_time
