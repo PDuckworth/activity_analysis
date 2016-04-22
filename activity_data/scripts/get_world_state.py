@@ -53,7 +53,7 @@ class dataReader(object):
 		argd_params = {"Touch": 0.5, "Near": 2, "Far": 3}
 		qstag_params = {"min_rows" : 1, "max_rows" : 1, "max_eps" : 5}
 		qsrs_for = [("head", "right_hand"), ("head", "left_hand"), ("left_hand", "right_hand")]
-		object_types = {"right_hand": "hand", "left_hand": "hand"}
+		object_types = {"right_hand": "hand", "left_hand": "hand", "head":"head"}
 		self.dynamic_args = {
 						"qtcbs": {"quantisation_factor": quantisation_factor,
 								  "validate": validate,
@@ -139,9 +139,10 @@ class dataReader(object):
 		print "logging the QSTAG"
 		eps = pickle.dumps(qstag.episodes)
 		graph = pickle.dumps(qstag.graph)
-		#obs = qstag.object_nodes
-
-		obs = ["hand", "hand", "head"]
+		obs = [node['name'] for node in qstag.object_nodes]
+		
+		print ">>", qstag.graphlets.graphlets
+		
 		msg = QsrsToMongo(uuid = uuid, which_qsr = self._which_qsr,
 			episodes=eps, igraph=graph, histogram=qstag.graphlets.histogram, 
 			code_book = qstag.graphlets.code_book, start_time= msg_data["start_time"],

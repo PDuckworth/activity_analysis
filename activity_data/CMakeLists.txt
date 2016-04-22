@@ -49,6 +49,7 @@ add_message_files(
    FILES
    QSRlibMongo.msg
    QsrsToMongo.msg
+   Graphlets.msg
 )
 
 ## Generate services in the 'srv' folder

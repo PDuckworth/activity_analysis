@@ -2,9 +2,8 @@ string uuid
 string which_qsr
 string episodes
 string[] objects
-string igraph
-int32[] histogram
-int64[] code_book
+string iGraph
+activity_data/Graphlets histogram
 int32 number_of_detections
 string map_name
 string current_node
