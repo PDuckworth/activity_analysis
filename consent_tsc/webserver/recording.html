@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" type="text/css" href="recording.css">
+<script type="text/javascript" src="js_scripts/eventemitter2.min.js"></script>
+<script type="text/javascript" src="js_scripts/roslib.min.js"></script>
+<script src="js_scripts/jquery.min.js"></script>
+<script type="text/javascript" type="text/javascript">
+
+  // Connecting to ROS
+  // -----------------
+
+  $(document).ready(function(){
+    $("#thanks").hide();
+  });
+
+
+  var ros = new ROSLIB.Ros({
+    url : 'ws://localhost:9090'
+  });
+
+  ros.on('connection', function() {
+    console.log('Connected to websocket server.');
+  });
+
+  ros.on('error', function(error) {
+    console.log('Error connecting to websocket server: ', error);
+  });
+
+  ros.on('close', function() {
+    console.log('Connection to websocket server closed.');
+  });
+
+  cmdVel = new ROSLIB.Topic({
+    ros : ros,
+    name : '/skeleton_data/consent_ret',
+    messageType : 'std_msgs/String'
+  });
+
+
+  function hidemsg() {
+    $("#thanks").hide();
+  }
+
+  function pub(arg) {
+    var twist = new ROSLIB.Message({data:arg});
+    cmdVel.publish(twist);
+    $("#thanks").show();
+    setTimeout(hidemsg, 3000);
+  }
+
+
+
+
+
+</script>
+</head>
+
+<body>
+  <h1>LUCIE DATA RECORDING</h1>
+  <p>Please can we store the data we have just recorded? <cr>  Please indicate your consent below.</p>
+  <div class = "container">
+  <a href="#" onclick="pub('everything')" class="myButton everything"><div></div><p>Everything</p></a>
+  <a href="#" onclick="pub('depthskel')" class="myButton depthskel"><div></div><p>Depth And Skeleton</p></a>
+  <a href="#" onclick="pub('skel')" class="myButton skel"><div></div><p>Skeleton Only</p></a>
+  <a href="#" onclick="pub('nothing')" class="myButton nothing"><div></div><p>Nothing</p></a>
+  <p id="thanks">Thankyou for your cooperation. We promise your data is being used to make the world a better place.</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,50 @@
+body {
+	text-align: center;
+}
+
+p {
+	font-size: 25px;
+}
+
+#thanks {
+	font-size: 18px;
+}
+
+.container {
+	display: inline-block;
+}
+
+
+.container a {
+	float:left;
+	margin: 0 3px;
+}
+
+.container a div{
+	height: 100%;
+}
+
+.myButton{
+
+	background-size: 220px 169px;
+    background-repeat: no-repeat;
+    display: block;
+    width: 220px;
+    height: 169px;
+
+}
+.everything{
+	background-image:url("images/image1.jpeg");	
+}
+
+.depthskel {
+	background-image:url("images/image2.jpeg");
+}
+
+.skel {
+	background-image:url("images/image3.jpeg");
+}
+
+.nothing { 
+	background-image:url("images/image4.jpeg");
+}
