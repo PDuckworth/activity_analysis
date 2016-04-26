@@ -21,7 +21,7 @@ class manageConsentWebpage(object):
         self.bridge = CvBridge()
         self.display_no = rospy.get_param("~display", 0)
         strands_webserver.client_utils.set_http_root(self.filepath)
-        strands_webserver.client_utils.display_relative_page(self.display_no, 'main.html')
+        strands_webserver.client_utils.display_relative_page(self.display_no, 'recording.html')
 
         #listen to request for consent
         rospy.Subscriber("/skeleton_data/consent_req", String, callback=self.consent_req_callback, queue_size=1)
@@ -30,7 +30,7 @@ class manageConsentWebpage(object):
     def consent_req_callback(self, msg):
         self.consent_req=msg
         self.get_imgs()
-        self.serve_webpage()
+        #self.serve_webpage()
 
     def consent_ret_callback(self, msg):
         self.consent_ret=msg
@@ -41,7 +41,7 @@ class manageConsentWebpage(object):
             return
         strands_webserver.client_utils.set_http_root(self.filepath)
         strands_webserver.client_utils.display_relative_page(self.display_no, 'recording.html')
-        # self.manage_timeout()
+        self.manage_timeout()
         self.consent_ret=None
 
     # def manage_timeout(self):
