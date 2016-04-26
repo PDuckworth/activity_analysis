@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -13,6 +14,8 @@
 
   $(document).ready(function(){
     $("#thanks").hide();
+    $("#feedback-buttons").hide();
+    $("#thanks-screen").hide();
     var timestamp = +new Date;
     var url = "http://mysite.com/myfile.js?t=" + timestamp;
   });
@@ -40,34 +43,61 @@
     messageType : 'std_msgs/String'
   });
 
+  var listener = new ROSLIB.Topic({
+    ros : ros,
+    name : '/skeleton_data/consent_req',
+    messageType : 'std_msgs/String'
+  });
 
-  function hidemsg() {
-    $("#thanks").hide();
-  }
+  listener.subscribe(function(message) {
+    console.log('Received message on ' + listener.name + ': ' + message.data);
+    $("#main-screen").hide();
+    $("#feedback-buttons").show();
+    setTimeout(showmain, 10000);
+  });
+
 
   function pub(arg) {
+
+
     var twist = new ROSLIB.Message({data:arg});
     cmdVel.publish(twist);
-    $("#thanks").show();
-    setTimeout(hidemsg, 3000);
+    $("#feedback-buttons").hide();
+    $("#thanks-screen").show();
+    setTimeout(showmain2, 5000);
   }
 
+  function showmain() {
+    $("#feedback-buttons").hide();
+    $("#main-screen").show();
+  }
 
-
-
+  function showmain2() {
+    $("#thanks-screen").hide();
+    $("#main-screen").show();
+  }
 
 </script>
 </head>
 
 <body>
-  <h1>LUCIE DATA RECORDING</h1>
-  <p>Please can we store the data we have just recorded? <cr>  Please indicate your consent below.</p>
-  <div class = "container">
-  <a href="#" onclick="pub('everything')" class="myButton everything"><div></div><p>Everything</p></a>
-  <a href="#" onclick="pub('depthskel')" class="myButton depthskel"><div></div><p>Depth And Skeleton</p></a>
-  <a href="#" onclick="pub('skel')" class="myButton skel"><div></div><p>Skeleton Only</p></a>
-  <a href="#" onclick="pub('nothing')" class="myButton nothing"><div></div><p>Nothing</p></a>
-  <p id="thanks">Thankyou for your cooperation. We promise your data is being used to make the world a better place.</p>
+  <div id = 'main-screen'>
+    <h1>LUCIE IS RECORDING</h1>
   </div>
+  <div id = 'feedback-buttons'>
+    <h1>LUCIE DATA RECORDING</h1>
+    <p>Please can we store the data we have just recorded? <cr>  Please indicate your consent below.</p>
+    <div class = "container">
+    <a href="#" onclick="pub('everything')" class="myButton everything"><div></div><p>Everything</p></a>
+    <a href="#" onclick="pub('depthskel')" class="myButton depthskel"><div></div><p>Depth And Skeleton</p></a>
+    <a href="#" onclick="pub('skel')" class="myButton skel"><div></div><p>Skeleton Only</p></a>
+    <a href="#" onclick="pub('nothing')" class="myButton nothing"><div></div><p>Nothing</p></a>
+    <p id="thanks">Thankyou for your cooperation. We promise your data is being used to make the world a better place.</p>
+    </div>
+  </div>
+  <div id = 'thanks-screen'>
+    <h1>THANK YOU</h1>
+  </div>
+
 </body>
 </html>
