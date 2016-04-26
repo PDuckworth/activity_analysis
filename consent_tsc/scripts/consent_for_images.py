@@ -40,17 +40,17 @@ class manageConsentWebpage(object):
             return
         strands_webserver.client_utils.set_http_root(self.filepath)
         strands_webserver.client_utils.display_relative_page(self.display_no, 'recording.html')
-        self.manage_timeout()
+        # self.manage_timeout()
         self.consent_ret=None
 
-    def manage_timeout(self):
-        for i in xrange(self.timeout):
-            print "timeout ", i, self.consent_ret
-            if self.consent_ret==None:
-                rospy.sleep(1.)
-        strands_webserver.client_utils.display_relative_page(self.display_no, 'thanks.html')
-        rospy.sleep(5.)
-        strands_webserver.client_utils.display_relative_page(self.display_no, 'main.html')
+    # def manage_timeout(self):
+    #     for i in xrange(self.timeout):
+    #         print "timeout ", i, self.consent_ret
+    #         if self.consent_ret==None:
+    #             rospy.sleep(1.)
+    #     strands_webserver.client_utils.display_relative_page(self.display_no, 'thanks.html')
+    #     rospy.sleep(5.)
+    #     strands_webserver.client_utils.display_relative_page(self.display_no, 'main.html')
 
     def create_image(self, query, filename, depth=False):
         msg, meta = self.msg_store.query(Image._type, meta_query=query, single=True)
