@@ -2,6 +2,7 @@
 import sys, os
 import rospy, roslib
 import cv2
+import numpy as np
 import strands_webserver.client_utils
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
@@ -57,10 +58,10 @@ class manageConsentWebpage(object):
         if not msg:
             raise Exception('No matching message_store entry')
         if depth:
-            depth_image = self.bridge.imgmsg_to_cv(msg, '32FC1')
+            depth_image = self.bridge.imgmsg_to_cv2(msg, '32FC1')
             depth_array = np.array(depth_image, dtype=np.float32)
             cv2.normalize(depth_array, depth_array, 0, 1, cv2.NORM_MINMAX)
-            cv2.imwrite(self.filepath + '/images/' + filename +'.jpeg', cv_image,frame*255)
+            cv2.imwrite(self.filepath + '/images/' + filename +'.jpeg', depth_array,frame*255)
 
             # img_d = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
             # img_d.setflags(write=True) # allow to change the values

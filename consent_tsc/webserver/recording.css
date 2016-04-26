@@ -33,8 +33,13 @@ p {
     height: 169px;
 
 }
+
+.myButton img {
+	width: 220px;
+	height: 169px;
+}
 .everything{
-	background-image:url("images/image1.jpeg");	
+	background-image:url("images/image1.jpeg");
 }
 
 .depthskel {
@@ -45,6 +50,6 @@ p {
 	background-image:url("images/image3.jpeg");
 }
 
-.nothing { 
+.nothing {
 	background-image:url("images/image4.jpeg");
 }

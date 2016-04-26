@@ -53,13 +53,14 @@
     console.log('Received message on ' + listener.name + ': ' + message.data);
     $("#main-screen").hide();
     $("#feedback-buttons").show();
+    $('.everything img').attr('src',"images/image1.jpeg?random="+new Date().getTime());
+    $('.depthskel img').attr('src',"images/image2.jpeg?random="+new Date().getTime());
+    $('.skel img').attr('src',"images/image3.jpeg?random="+new Date().getTime());
     setTimeout(showmain, 10000);
   });
 
 
   function pub(arg) {
-
-
     var twist = new ROSLIB.Message({data:arg});
     cmdVel.publish(twist);
     $("#feedback-buttons").hide();
@@ -68,6 +69,8 @@
   }
 
   function showmain() {
+    var twist = new ROSLIB.Message({data:"nothing"});
+    cmdVel.publish(twist);
     $("#feedback-buttons").hide();
     $("#main-screen").show();
   }
@@ -88,10 +91,10 @@
     <h1>LUCIE DATA RECORDING</h1>
     <p>Please can we store the data we have just recorded? <cr>  Please indicate your consent below.</p>
     <div class = "container">
-    <a href="#" onclick="pub('everything')" class="myButton everything"><div></div><p>Everything</p></a>
-    <a href="#" onclick="pub('depthskel')" class="myButton depthskel"><div></div><p>Depth And Skeleton</p></a>
-    <a href="#" onclick="pub('skel')" class="myButton skel"><div></div><p>Skeleton Only</p></a>
-    <a href="#" onclick="pub('nothing')" class="myButton nothing"><div></div><p>Nothing</p></a>
+    <a href="#" onclick="pub('everything')" class="myButton everything"><img src = "images/image1.jpeg"></img><p>Everything</p></a>
+    <a href="#" onclick="pub('depthskel')" class="myButton depthskel"><img src = "images/image2.jpeg"></img><p>Depth And Skeleton</p></a>
+    <a href="#" onclick="pub('skel')" class="myButton skel"><img src = "images/image3.jpeg"></img><p>Skeleton Only</p></a>
+    <a href="#" onclick="pub('nothing')" class="myButton nothing"><img src = "images/image4.jpeg"></img><p>Nothing</p></a>
     <p id="thanks">Thankyou for your cooperation. We promise your data is being used to make the world a better place.</p>
     </div>
   </div>
