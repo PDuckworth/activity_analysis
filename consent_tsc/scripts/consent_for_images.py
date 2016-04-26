@@ -57,14 +57,19 @@ class manageConsentWebpage(object):
         if not msg:
             raise Exception('No matching message_store entry')
         if depth:
-            img_d = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
-            img_d.setflags(write=True) # allow to change the values
-            fgmask = cv2.convertScaleAbs(img_d) # cv2 stuff
-            cv_image = cv2.cvtColor(fgmask,cv2.COLOR_GRAY2BGR) # cv2 stuff
+            depth_image = self.cv_bridge.imgmsg_to_cv(msg, '32FC1')
+            depth_array = np.array(depth_image, dtype=np.float32)
+            cv2.normalize(depth_array, depth_array, 0, 1, cv2.NORM_MINMAX)
+            cv2.imwrite(self.filepath + '/images/' + filename +'.jpeg', cv_image,frame*255)
+
+            # img_d = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+            # img_d.setflags(write=True) # allow to change the values
+            # fgmask = cv2.convertScaleAbs(img_d) # cv2 stuff
+            # cv_image = cv2.cvtColor(fgmask,cv2.COLOR_GRAY2BGR) # cv2 stuff
         else:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
             cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
-        cv2.imwrite(self.filepath + '/images/' + filename +'.jpeg', cv_image)
+            cv2.imwrite(self.filepath + '/images/' + filename +'.jpeg', cv_image)
 
 
     def get_imgs(self):
