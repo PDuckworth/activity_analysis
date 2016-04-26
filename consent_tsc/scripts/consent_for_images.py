@@ -61,7 +61,7 @@ class manageConsentWebpage(object):
             depth_image = self.bridge.imgmsg_to_cv2(msg, '32FC1')
             depth_array = np.array(depth_image, dtype=np.float32)
             cv2.normalize(depth_array, depth_array, 0, 1, cv2.NORM_MINMAX)
-            cv2.imwrite(self.filepath + '/images/' + filename +'.jpeg', depth_array,frame*255)
+            cv2.imwrite(self.filepath + '/images/' + filename +'.jpeg', depth_array*255)
 
             # img_d = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
             # img_d.setflags(write=True) # allow to change the values
