@@ -34,6 +34,7 @@
   });
 
   ros.on('close', function() {
+alert('closed');
     console.log('Connection to websocket server closed.');
   });
 
@@ -53,12 +54,15 @@
     console.log('Received message on ' + listener.name + ': ' + message.data);
     $("#main-screen").hide();
     $("#feedback-buttons").show();
+    setTimeout(reloadImages, 2000);
+  });
+
+  function reloadImages() {
     $('.everything img').attr('src',"images/image1.jpeg?random="+new Date().getTime());
     $('.depthskel img').attr('src',"images/image2.jpeg?random="+new Date().getTime());
     $('.skel img').attr('src',"images/image3.jpeg?random="+new Date().getTime());
-    setTimeout(showmain, 10000);
-  });
-
+    setTimeout(showmain, 10000);  
+  }
 
   function pub(arg) {
     var twist = new ROSLIB.Message({data:arg});
@@ -69,8 +73,8 @@
   }
 
   function showmain() {
-    var twist = new ROSLIB.Message({data:"nothing"});
-    cmdVel.publish(twist);
+    var twist2 = new ROSLIB.Message({data:"nothing"});
+    cmdVel.publish(twist2);
     $("#feedback-buttons").hide();
     $("#main-screen").show();
   }
