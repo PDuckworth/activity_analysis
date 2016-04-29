@@ -10,6 +10,13 @@ p {
 	font-size: 18px;
 }
 
+#main-screen {
+	font-size: 70px;
+	margin-top: 155px;
+	font-family: sans;
+	color: bisque;
+}
+
 .container {
 	display: inline-block;
 }

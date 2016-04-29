@@ -61,7 +61,7 @@ alert('closed');
     $('.everything img').attr('src',"images/image1.jpeg?random="+new Date().getTime());
     $('.depthskel img').attr('src',"images/image2.jpeg?random="+new Date().getTime());
     $('.skel img').attr('src',"images/image3.jpeg?random="+new Date().getTime());
-    setTimeout(showmain, 10000);  
+    setTimeout(showmain, 60000);  
   }
 
   function pub(arg) {
@@ -73,10 +73,13 @@ alert('closed');
   }
 
   function showmain() {
-    var twist2 = new ROSLIB.Message({data:"nothing"});
-    cmdVel.publish(twist2);
-    $("#feedback-buttons").hide();
-    $("#main-screen").show();
+    var ans = $("#feedback-buttons").is(':visible');
+    if (ans == true) {
+      var twist2 = new ROSLIB.Message({data:"nothing"});
+      cmdVel.publish(twist2);
+      $("#feedback-buttons").hide();
+      $("#main-screen").show();
+    }
   }
 
   function showmain2() {
@@ -89,7 +92,7 @@ alert('closed');
 
 <body>
   <div id = 'main-screen'>
-    <h1>LUCIE IS RECORDING</h1>
+    <h1>Robot Is Recording</h1>
   </div>
   <div id = 'feedback-buttons'>
     <h1>LUCIE DATA RECORDING</h1>
