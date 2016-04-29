@@ -24,17 +24,16 @@ class manageConsentWebpage(object):
         #subscribers
         rospy.Subscriber("/skeleton_data/consent_req", String, callback=self.consent_req_callback, queue_size=1)
         rospy.Subscriber("/skeleton_data/consent_ret", String, callback=self.consent_ret_callback, queue_size=1)
-        rospy.Subscriber("/skeleton_data/recording_started", String, callback=self.started_recording_callback, queue_size=1)
-
+        rospy.Subscriber("/skeleton_data/recording_started", String, callback= self.started_recording_callback, queue_size=1)
 
     def started_recording_callback(self, msg):
-	print msg
-	print "here"
+        print "call webpage"
         strands_webserver.client_utils.set_http_root(self.filepath)
         strands_webserver.client_utils.display_relative_page(self.display_no, 'recording.html')
 
 
     def consent_req_callback(self, msg):
+        print "req cb", msg
         self.consent_req=msg
         self.get_imgs()
         #self.serve_webpage()
