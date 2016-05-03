@@ -1,113 +1,134 @@
-
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta charset="utf-8" />
-<link rel="stylesheet" type="text/css" href="recording.css">
-<script type="text/javascript" src="js_scripts/eventemitter2.min.js"></script>
-<script type="text/javascript" src="js_scripts/roslib.min.js"></script>
-<script src="js_scripts/jquery.min.js"></script>
-<script type="text/javascript" type="text/javascript">
+    <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="recording.css">
+    <script type="text/javascript" src="js_scripts/eventemitter2.min.js"></script>
+    <script type="text/javascript" src="js_scripts/roslib.min.js"></script>
+    <script src="js_scripts/jquery.min.js"></script>
+    <script type="text/javascript" type="text/javascript">
+        // Connecting to ROS
+        // -----------------
 
-  // Connecting to ROS
-  // -----------------
+        $(document).ready(function() {
+        	var t0,t1,t2;
+            $("#thanks").hide();
+            //$("#main-screen").hide();
+          
+            $("#feedback-buttons").hide();
+            $("#thanks-screen").hide();
+            var timestamp = +new Date;
+            var url = "http://mysite.com/myfile.js?t=" + timestamp;
+        });
 
-  $(document).ready(function(){
-    $("#thanks").hide();
-    $("#feedback-buttons").hide();
-    $("#thanks-screen").hide();
-    var timestamp = +new Date;
-    var url = "http://mysite.com/myfile.js?t=" + timestamp;
-  });
 
+        var ros = new ROSLIB.Ros({
+            url: 'ws://localhost:9090'
+        });
 
-  var ros = new ROSLIB.Ros({
-    url : 'ws://localhost:9090'
-  });
+        ros.on('connection', function() {
+            console.log('Connected to websocket server.');
+        });
 
-  ros.on('connection', function() {
-    console.log('Connected to websocket server.');
-  });
+        ros.on('error', function(error) {
+            console.log('Error connecting to websocket server: ', error);
+        });
 
-  ros.on('error', function(error) {
-    console.log('Error connecting to websocket server: ', error);
-  });
+        ros.on('close', function() {
+            console.log('Connection to websocket server closed.');
+        });
 
-  ros.on('close', function() {
-alert('closed');
-    console.log('Connection to websocket server closed.');
-  });
+        cmdVel = new ROSLIB.Topic({
+            ros: ros,
+            name: '/skeleton_data/consent_ret',
+            messageType: 'std_msgs/String'
+        });
+        cmdVel.publish('init');
 
-  cmdVel = new ROSLIB.Topic({
-    ros : ros,
-    name : '/skeleton_data/consent_ret',
-    messageType : 'std_msgs/String'
-  });
+        var listener = new ROSLIB.Topic({
+            ros: ros,
+            name: '/skeleton_data/consent_req',
+            messageType: 'std_msgs/String'
+        });
 
-  var listener = new ROSLIB.Topic({
-    ros : ros,
-    name : '/skeleton_data/consent_req',
-    messageType : 'std_msgs/String'
-  });
+        listener.subscribe(function(message) {
+            console.log('Received message on ' + listener.name + ': ' + message.data);
+            $("#main-screen").hide();
+            $("#feedback-buttons").show();
+            t0 = setTimeout(reloadImages, 2000);
+        });
 
-  listener.subscribe(function(message) {
-    console.log('Received message on ' + listener.name + ': ' + message.data);
-    $("#main-screen").hide();
-    $("#feedback-buttons").show();
-    setTimeout(reloadImages, 2000);
-  });
+        function reloadImages() {
+            $('.everything img').attr('src', "images/image1.jpeg?random=" + new Date().getTime());
+            $('.depthskel img').attr('src', "images/image2.jpeg?random=" + new Date().getTime());
+            $('.skel img').attr('src', "images/image3.jpeg?random=" + new Date().getTime());
+            $('.nothing img').attr('src', "images/image4.gif?random=" + new Date().getTime());
+            t1 = setTimeout(showmain, 30000);
+        }
 
-  function reloadImages() {
-    $('.everything img').attr('src',"images/image1.jpeg?random="+new Date().getTime());
-    $('.depthskel img').attr('src',"images/image2.jpeg?random="+new Date().getTime());
-    $('.skel img').attr('src',"images/image3.jpeg?random="+new Date().getTime());
-    setTimeout(showmain, 60000);  
-  }
+        function pub(arg) {
+        	clearTimeout(t1);
+        	clearTimeout(t0);
+            console.log('Clicked');
+            var twist = new ROSLIB.Message({
+                data: arg
+            });
+            cmdVel.publish(twist);
+            $("#feedback-buttons").hide();
+            $("#thanks-screen").show();
+            t2 = setTimeout(showmain2, 5000);
+        }
 
-  function pub(arg) {
-    var twist = new ROSLIB.Message({data:arg});
-    cmdVel.publish(twist);
-    $("#feedback-buttons").hide();
-    $("#thanks-screen").show();
-    setTimeout(showmain2, 5000);
-  }
+        function showmain() {
+            var ans = $("#feedback-buttons").is(':visible');
+            console.log('timeout 30s');
+            if (ans == true) {
+                var twist2 = new ROSLIB.Message({
+                    data: "nothingss"
+                });
+                cmdVel.publish(twist2);
+                $("#feedback-buttons").hide();
+                $("#main-screen").show();
+            }
+        }
 
-  function showmain() {
-    var ans = $("#feedback-buttons").is(':visible');
-    if (ans == true) {
-      var twist2 = new ROSLIB.Message({data:"nothing"});
-      cmdVel.publish(twist2);
-      $("#feedback-buttons").hide();
-      $("#main-screen").show();
-    }
-  }
-
-  function showmain2() {
-    $("#thanks-screen").hide();
-    $("#main-screen").show();
-  }
-
-</script>
+        function showmain2() {
+            $("#thanks-screen").hide();
+            $("#main-screen").show();
+            clearTimeout(t2);
+        }
+    </script>
 </head>
 
 <body>
-  <div id = 'main-screen'>
-    <h1>Robot Is Recording</h1>
-  </div>
-  <div id = 'feedback-buttons'>
-    <h1>LUCIE DATA RECORDING</h1>
-    <p>Please can we store the data we have just recorded? <cr>  Please indicate your consent below.</p>
-    <div class = "container">
-    <a href="#" onclick="pub('everything')" class="myButton everything"><img src = "images/image1.jpeg"></img><p>Everything</p></a>
-    <a href="#" onclick="pub('depthskel')" class="myButton depthskel"><img src = "images/image2.jpeg"></img><p>Depth And Skeleton</p></a>
-    <a href="#" onclick="pub('skel')" class="myButton skel"><img src = "images/image3.jpeg"></img><p>Skeleton Only</p></a>
-    <a href="#" onclick="pub('nothing')" class="myButton nothing"><img src = "images/image4.jpeg"></img><p>Nothing</p></a>
-    <p id="thanks">Thankyou for your cooperation. We promise your data is being used to make the world a better place.</p>
+    <div id='main-screen'>
+        <h1>Robot Is Recording</h1>
     </div>
-  </div>
-  <div id = 'thanks-screen'>
-    <h1>THANK YOU</h1>
-  </div>
+    <div id='feedback-buttons'>
+        <h1>LUCIE DATA RECORDING</h1>
+        <p>Please can we store the data we have just recorded?
+            <cr> Please indicate your consent below.</p>
+        <div class="container">
+            <a href="#" onclick="pub('everything')" class="myButton everything"><img src="images/image1.jpeg"></img>
+                <p>Everything</p>
+            </a>
+            <a href="#" onclick="pub('depthskel')" class="myButton depthskel"><img src="images/image2.jpeg"></img>
+                <p>Depth And Skeleton</p>
+            </a>
+            <a href="#" onclick="pub('skel')" class="myButton skel"><img src="images/image3.jpeg"></img>
+                <p>Skeleton Only</p>
+            </a>
+            <a href="#" onclick="pub('nothing')" class="myButton nothing"><img src="images/image4.gif"></img>
+                <p>Nothing</p>
+            </a>
+            <p id="thanks">Thankyou for your cooperation. We promise your data is being used to make the world a better place.</p>
+        </div>
+    </div>
+    <div id='thanks-screen'>
+        <h1>THANK YOU</h1>
+    </div>
 
 </body>
+
 </html>

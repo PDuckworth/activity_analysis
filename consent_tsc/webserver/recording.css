@@ -1,5 +1,6 @@
 body {
 	text-align: center;
+	color: brown;
 }
 
 p {
@@ -14,7 +15,6 @@ p {
 	font-size: 70px;
 	margin-top: 155px;
 	font-family: sans;
-	color: bisque;
 }
 
 .container {
@@ -23,8 +23,27 @@ p {
 
 
 .container a {
-	float:left;
-	margin: 0 3px;
+    border-radius: 25px;
+    margin: 22px 75px;
+    width: 247px;
+    height: 245px;
+	background-color: #EEEEEE;
+	color: #333333;
+	padding: 2px 6px 2px 6px;
+    border-top: 1px solid #CCCCCC;
+    border-right: 2px solid #333333;
+    border-bottom: 2px solid #333333;
+    border-left: 1px solid #CCCCCC;
+    display: inline-block;
+    text-decoration:none;
+    
+}
+
+.container a:active {
+
+  border-right: 1px solid #333333;
+  border-bottom: 1px solid #333333;
+
 }
 
 .container a div{
@@ -42,21 +61,15 @@ p {
 }
 
 .myButton img {
+	    margin-top: 15px;
 	width: 220px;
 	height: 169px;
 }
-.everything{
-	background-image:url("images/image1.jpeg");
+
+.myButton p {
+    margin-top: 10px;
+    font-size: 25px;
+    color: black;
+
 }
 
-.depthskel {
-	background-image:url("images/image2.jpeg");
-}
-
-.skel {
-	background-image:url("images/image3.jpeg");
-}
-
-.nothing {
-	background-image:url("images/image4.jpeg");
-}
