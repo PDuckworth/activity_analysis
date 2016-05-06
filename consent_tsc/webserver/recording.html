@@ -77,7 +77,7 @@
             cmdVel.publish(twist);
             $("#feedback-buttons").hide();
             $("#thanks-screen").show();
-            t2 = setTimeout(showmain2, 5000);
+            
         }
 
         function showmain() {
@@ -93,11 +93,7 @@
             }
         }
 
-        function showmain2() {
-            $("#thanks-screen").hide();
-            $("#main-screen").show();
-            clearTimeout(t2);
-        }
+
     </script>
 </head>
 
