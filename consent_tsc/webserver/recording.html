@@ -15,7 +15,7 @@
         	var t0,t1,t2;
             $("#thanks").hide();
             //$("#main-screen").hide();
-          
+
             $("#feedback-buttons").hide();
             $("#thanks-screen").hide();
             var timestamp = +new Date;
@@ -44,7 +44,11 @@
             name: '/skeleton_data/consent_ret',
             messageType: 'std_msgs/String'
         });
-        cmdVel.publish('init');
+        
+        var t = new ROSLIB.Message({
+                data: "init"
+            });
+        cmdVel.publish(t);
 
         var listener = new ROSLIB.Topic({
             ros: ros,
@@ -77,7 +81,7 @@
             cmdVel.publish(twist);
             $("#feedback-buttons").hide();
             $("#thanks-screen").show();
-            
+
         }
 
         function showmain() {
