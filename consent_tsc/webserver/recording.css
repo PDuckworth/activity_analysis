@@ -7,6 +7,10 @@ p {
 	font-size: 25px;
 }
 
+#question {
+	margin-bottom: 10px;
+}
+
 #thanks {
 	font-size: 18px;
 }
@@ -17,6 +21,10 @@ p {
 	font-family: sans;
 }
 
+#thanks-screen h1 {
+	font-size: 120px;
+}
+
 .container {
 	display: inline-block;
 }
@@ -24,9 +32,9 @@ p {
 
 .container a {
     border-radius: 25px;
-    margin: 22px 75px;
-    width: 247px;
-    height: 245px;
+    margin: 8px 8px;
+    width: 390px;
+    height: 290px;
 	background-color: #EEEEEE;
 	color: #333333;
 	padding: 2px 6px 2px 6px;
@@ -62,8 +70,8 @@ p {
 
 .myButton img {
 	    margin-top: 15px;
-	width: 220px;
-	height: 169px;
+	width: 360px;
+	height: 224px;
 }
 
 .myButton p {

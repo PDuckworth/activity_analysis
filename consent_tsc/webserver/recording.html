@@ -68,7 +68,7 @@
             $('.depthskel img').attr('src', "images/image2.jpeg?random=" + new Date().getTime());
             $('.skel img').attr('src', "images/image3.jpeg?random=" + new Date().getTime());
             $('.nothing img').attr('src', "images/image4.gif?random=" + new Date().getTime());
-            t1 = setTimeout(showmain, 30000);
+            t1 = setTimeout(showmain, 300000);
         }
 
         function pub(arg) {
@@ -103,30 +103,27 @@
 
 <body>
     <div id='main-screen'>
-        <h1>Robot Is Recording</h1>
+        <h1>Robot Recording Video Data</h1>
     </div>
     <div id='feedback-buttons'>
         <h1>LUCIE DATA RECORDING</h1>
-        <p>Please can we store the data we have just recorded?
+        <p id='question'>Please can we store the data we have just recorded?
             <cr> Please indicate your consent below.</p>
         <div class="container">
             <a href="#" onclick="pub('everything')" class="myButton everything"><img src="images/image1.jpeg"></img>
-                <p>Everything</p>
+                <p>Video Data</p>
             </a>
             <a href="#" onclick="pub('depthskel')" class="myButton depthskel"><img src="images/image2.jpeg"></img>
-                <p>Depth And Skeleton</p>
-            </a>
-            <a href="#" onclick="pub('skel')" class="myButton skel"><img src="images/image3.jpeg"></img>
-                <p>Skeleton Only</p>
+                <p>Anonymous Video Data</p>
             </a>
             <a href="#" onclick="pub('nothing')" class="myButton nothing"><img src="images/image4.gif"></img>
-                <p>Nothing</p>
+                <p>No Data Stored</p>
             </a>
-            <p id="thanks">Thankyou for your cooperation. We promise your data is being used to make the world a better place.</p>
+           
         </div>
     </div>
     <div id='thanks-screen'>
-        <h1>THANK YOU</h1>
+        <h1>THANK YOU FOR YOUR COOPERATION</h1>
     </div>
 
 </body>

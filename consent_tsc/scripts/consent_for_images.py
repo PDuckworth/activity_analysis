@@ -21,21 +21,35 @@ class manageConsentWebpage(object):
         self.bridge = CvBridge()
         self.display_no = rospy.get_param("~display", 0)
 
+        http_root = os.path.join(roslib.packages.get_pkg_dir('tsc_robot_ui'), 'pages')
+        strands_webserver.client_utils.set_http_root(http_root)
+        rospy.sleep(1)
+        strands_webserver.client_utils.display_relative_page(self.display_no, 'index.html')
         #subscribers
         rospy.Subscriber("/skeleton_data/consent_req", String, callback=self.consent_req_callback, queue_size=1)
         rospy.Subscriber("/skeleton_data/consent_ret", String, callback=self.consent_ret_callback, queue_size=1)
         rospy.Subscriber("/skeleton_data/recording_started", String, callback= self.started_recording_callback, queue_size=1)
 
     def started_recording_callback(self, msg):
-        print "serve webpage"
-        strands_webserver.client_utils.set_http_root(self.filepath)
-        strands_webserver.client_utils.display_relative_page(self.display_no, 'recording.html')
-
+	if msg.data != "finished":
+            print "serve recording webpage"
+            strands_webserver.client_utils.set_http_root(self.filepath)
+            rospy.sleep(1)
+            strands_webserver.client_utils.display_relative_page(self.display_no, 'recording.html')
+        else:
+            print "back to original webpage"
+            http_root = os.path.join(roslib.packages.get_pkg_dir('tsc_robot_ui'), 'pages')
+            strands_webserver.client_utils.set_http_root(http_root)
+            rospy.sleep(1)
+            strands_webserver.client_utils.display_relative_page(self.display_no, 'index.html')
 
     def consent_req_callback(self, msg):
         print "req cb", msg
         self.consent_req=msg
         self.get_imgs()
+	# strands_webserver.client_utils.set_http_root(self.filepath)
+        # rospy.sleep(1)
+        # strands_webserver.client_utils.display_relative_page(self.display_no, 'recording.html')
         #self.serve_webpage()
 
     def consent_ret_callback(self, msg):
@@ -43,15 +57,18 @@ class manageConsentWebpage(object):
         print "returned:", msg, self.consent_ret
         rospy.sleep(5)
         #re-serve the index main webpage
-        http_root = os.path.join(roslib.packages.get_pkg_dir('tsc_robot_ui'), 'pages')
-        strands_webserver.client_utils.set_http_root(http_root)
-        strands_webserver.client_utils.display_relative_page(self.display_no, 'index.html')
+        if msg.data != "init":
+	    http_root = os.path.join(roslib.packages.get_pkg_dir('tsc_robot_ui'), 'pages')
+	    strands_webserver.client_utils.set_http_root(http_root)
+	    rospy.sleep(1)
+            strands_webserver.client_utils.display_relative_page(self.display_no, 'index.html')
 
 
     def serve_webpage(self):
         if not os.path.isfile(self.filepath + '/recording.html'):
             return
         strands_webserver.client_utils.set_http_root(self.filepath)
+	rospy.sleep(1)
         strands_webserver.client_utils.display_relative_page(self.display_no, 'recording.html')
         self.manage_timeout()
         self.consent_ret=None
