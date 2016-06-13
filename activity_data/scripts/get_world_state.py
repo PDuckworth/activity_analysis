@@ -25,7 +25,7 @@ class dataReader(object):
 
 		self.skeleton_data = {}  #keeps the published complete skeleton in a dictionary. key = uuid
 		self.rate = rospy.Rate(15.0)
-		
+
 		## listeners:
 		rospy.Subscriber("skeleton_data/complete", skeleton_complete, self.skeleton_callback)
 
@@ -38,7 +38,7 @@ class dataReader(object):
 			msg_store = self._message_store + "_world_state"
 			rospy.loginfo("Connecting to mongodb...%s" % msg_store)
 			self._store_client_world = MessageStoreProxy(collection=msg_store)
-			
+
 			msg_store = self._message_store + "_qstag"
 			self._store_client_qstag = MessageStoreProxy(collection=msg_store)
 
@@ -47,6 +47,11 @@ class dataReader(object):
 		self._which_qsr = rospy.get_param("~which_qsr", "rcc3")
 		#self.which_qsr = ["qtcbs", "argd"]
 
+		self.set_params()
+		self.cln = QSRlib_ROS_Client()
+
+
+	def set_params(self):
 		quantisation_factor = 0.01
 		validate = False
 		no_collapse = True
@@ -59,14 +64,12 @@ class dataReader(object):
 								  "validate": validate,
 								  "no_collapse": no_collapse,
 							      "qsrs_for": qsrs_for},
-							      
+
 						"rcc3" : {"qsrs_for": qsrs_for},
 						"argd": {"qsr_relations_and_values" : argd_params},
 						"qstag": {"object_types" : object_types, "params" : qstag_params},
 						"filters": {"median_filter" : {"window": 3}}
 						}
-
-		self.cln = QSRlib_ROS_Client()
 
 
 	def _create_qsrs(self):
@@ -76,11 +79,11 @@ class dataReader(object):
 				if msg_data["flag"] != 1: continue
 				print ">> recieving worlds for:", uuid
 				qsrlib_response_message = self._call_qsrLib(uuid, msg_data)
-				
+
 				if self._logging:
 					print msg_data.keys()
 					self.upload_qsrs_to_mongo(uuid, qsrlib_response_message.qstag, msg_data)
-				print ">>>", qsrlib_response_message.qstag.episodes				
+				print ">>>", qsrlib_response_message.qstag.episodes
 				print ">", qsrlib_response_message.qstag.graphlets.histogram
 				#print ">>>", qsrlib_response_message.qstag.graph
 				del self.skeleton_data[uuid]
@@ -140,21 +143,21 @@ class dataReader(object):
 		eps = pickle.dumps(qstag.episodes)
 		graph = pickle.dumps(qstag.graph)
 		obs = [node['name'] for node in qstag.object_nodes]
-		
+
 		print ">>", qstag.graphlets.graphlets
-		
+
 		msg = QsrsToMongo(uuid = uuid, which_qsr = self._which_qsr,
-			episodes=eps, igraph=graph, histogram=qstag.graphlets.histogram, 
+			episodes=eps, igraph=graph, histogram=qstag.graphlets.histogram,
 			code_book = qstag.graphlets.code_book, start_time= msg_data["start_time"],
-			map_name = msg_data["map"], current_node = msg_data["current_node"], 
+			map_name = msg_data["map"], current_node = msg_data["current_node"],
 			number_of_detections = msg_data["detections"], objects = obs,
 			end_time = msg_data["end_time"]
 			)
-			
+
 		query = {"uuid" : uuid}
-		self._store_client_qstag.update(message=msg, message_query=query, upsert=True)		
-		
-	
+		self._store_client_qstag.update(message=msg, message_query=query, upsert=True)
+
+
 
 
 class objectData(object):
@@ -188,4 +191,3 @@ if __name__ == "__main__":
 
 	dr = dataReader()
 	dr._create_qsrs()
-
