@@ -11,9 +11,13 @@ import getpass
 import numpy as np
 import cPickle as pickle
 import multiprocessing as mp
-from create_events import *
-from encode_qsrs import *
+#import human_activities.create_events as ce
+#import human_activities.encode_qsrs as eq
+import human_activities.test as t
 
+print t.f()
+
+sys.exit(1)
 
 class Offline_ActivityLearning(object):
 
@@ -27,7 +31,7 @@ class Offline_ActivityLearning(object):
         path = os.path.join(self.path, 'SafeZone')
         for recording in [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]:
             print "encoding file: ", recording
-            get_event(recording, path, self.mean_window)
+            ce.get_event(recording, path, self.mean_window)
 
     def encode_qsrs(self):
         """check for any events which are not QSRs yet"""
@@ -44,7 +48,7 @@ class Offline_ActivityLearning(object):
 
         for cnt, i in enumerate(list_of_events):
             print i
-            worker_qsrs(i)
+            eq.worker_qsrs(i)
 
 
     def make_histograms(self):
