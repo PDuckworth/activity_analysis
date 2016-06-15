@@ -1,4 +1,4 @@
 #!/usr/bin/env python
 
-def f():
+def fun():
 	return "hello"

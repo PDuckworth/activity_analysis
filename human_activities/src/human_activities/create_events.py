@@ -143,40 +143,45 @@ class event(object):
 
 
 
-def get_event(recording, path, mean_window=5):
+def get_event(recording, path, soma_objects, reduce_frame_rate=2, mean_window=5):
     """create event class from a recording"""
 
     """directories containing the data"""
     d1 = os.path.join(path, recording)
     d_sk = os.path.join(d1, 'skeleton/')
     d_robot = os.path.join(d1, 'robot/')
-    uuid = recording.split('_')[1]
-    date = recording.split('_')[0]
+
+    """information stored in the filename"""
+    try:
+        uuid = recording.split('_')[-2]
+        waypoint = recording.split('_')[-1]
+        date = ('_').join(recording.split('_')[:-2])
+    except:
+        print "no recording found"
+        return
 
     """ Get the robot's meta data"""
     if os.path.isfile(os.path.join(d1, 'meta.txt')):
         meta = open(os.path.join(d1, 'meta.txt'), 'r')
         for count, line in enumerate(meta):
             if count == 0: region_id = line.split('\n')[0].split(':')[1]
-            elif count == 1: waypoint = line.split('\n')[0].split(':')[1]
-            elif count == 2: pan = line.split('\n')[0].split(':')[1]
-            elif count == 3: tilt = line.split('\n')[0].split(':')[1]
+            elif count == 1: region = line.split('\n')[0].split(':')[1]
+            elif count == 2: pan = int(line.split('\n')[0].split(':')[1])
+            elif count == 3: tilt = int(line.split('\n')[0].split(':')[1])
 
-    """camera to map frame translation parameters"""
-    fx = 525.0
-    fy = 525.0
-    cx = 319.5
-    cy = 239.5
-
-    print uuid, date, waypoint, pan, tilt
+    #print "uid: %s. date: %s. waypoint: %s. pan: %s. tilt: %s" % (uuid, date, waypoint, pan, tilt)
 
     """initialise event"""
     e = event(uuid, d1, waypoint)
 
+    """get the skeleton data from each timepoint file"""
     sk_files = [f for f in os.listdir(d_sk) if os.path.isfile(os.path.join(d_sk, f))]
+
+    """reduce the number of frames by a rate. Re-number from 1."""
+    frame = 1
     for file in sorted(sk_files):
-        frame = int(file.split('.')[0].split('_')[1])
-        if frame % 2 != 0: continue
+        original_frame = int(file.split('.')[0].split('_')[1])
+        if original_frame % reduce_frame_rate != 0: continue
 
         e.skeleton_data[frame] = {}
         e.sorted_timestamps.append(frame)
@@ -203,12 +208,18 @@ def get_event(recording, path, mean_window=5):
             elif (count-1)%10 == 4:
                 a = float(line.split('\n')[0].split(':')[1])
                 e.skeleton_data[frame][j].append(a)
-
+        frame+=1
 
     """ apply a skeleton data filter and create a QSRLib.World_Trace object"""
     e.apply_mean_filter(window_length=mean_window)
 
-    # add the x2d and y2d (using filtered x,y,z data)
+    """add the x2d and y2d (using filtered x,y,z data) """
+    """3d to 2d translation parameters"""
+    fx = 525.0
+    fy = 525.0
+    cx = 319.5
+    cy = 239.5
+
     for frame in e.sorted_timestamps:
         for joint, j in e.filtered_skeleton_data[frame].items():
             (x,y,z) = j
@@ -243,7 +254,8 @@ def get_event(recording, path, mean_window=5):
                 aw = float(line.split('\n')[0].split(':')[1])
                 # ax,ay,az,aw
                 roll, pitch, yaw = euler_from_quaternion([ax, ay, az, aw])    #odom
-                pitch = 10*math.pi / 180.   #we pointed the pan tilt 10 degrees
+                yaw += pan*math.pi / 180.                   # this adds the pan of the ptu state when recording took place.
+                pitch += tilt*math.pi / 180.                # this adds the tilt of the ptu state when recording took place.
                 e.robot_data[frame][1] = [roll,pitch,yaw]
 
     """ add the map frame data for the skeleton detection"""
@@ -256,6 +268,7 @@ def get_event(recording, path, mean_window=5):
         """ because the Nite tracker has z as depth, height as y and left/right as x
          we translate this to the map frame with x, y and z as height. """
         for joint, (y,z,x,x2d,y2d) in e.filtered_skeleton_data[frame].items():
+
             rot_y = np.matrix([[np.cos(pr), 0, np.sin(pr)], [0, 1, 0], [-np.sin(pr), 0, np.cos(pr)]])
             rot_z = np.matrix([[np.cos(yawr), -np.sin(yawr), 0], [np.sin(yawr), np.cos(yawr), 0], [0, 0, 1]])
             rot = rot_z*rot_y
@@ -264,18 +277,43 @@ def get_event(recording, path, mean_window=5):
             pos_p = np.matrix([[x], [-y], [z]]) # person's position in camera frame
 
             map_pos = rot*pos_p+pos_r # person's position in map frame
-            x_mf = map_pos[0][0]
-            y_mf = map_pos[1][0]
-            z_mf = map_pos[2][0]
+            x_mf = map_pos[0,0]
+            y_mf = map_pos[1,0]
+            z_mf = map_pos[2,0]
 
             j = (x_mf, y_mf, z_mf)
             e.map_frame_data[frame][joint] = j
 
-    soma_objects = get_soma_objects(waypoint)
-
     e.get_world_frame_trace(soma_objects)
-
     save_event(e, "Events")
+
+
+def get_soma_objects(region=None):
+    #todo: read from soma2 mongo store.
+
+    objects = {}
+    objects['Kitchen'] = {}
+    objects['Long_room'] = {}
+    objects['Robot_lab'] = {}
+    objects['Staff_Room'] = {}
+
+    # kitchen objects
+    objects['Kitchen'] = {
+    'Printer_console_11': (-8.957, -17.511, 1.1),                           # fixed
+    # 'Printer_paper_tray_110': (-9.420, -18.413, 1.132),                     # fixed
+    # 'Shelves_44': (-8.226, -15.223, 1.0),
+    'Microwave_3': (-4.835, -15.812, 1.0),                                  # fixed
+    'Kettle_32': (-2.511, -15.724, 1.41),                                   # fixed
+    'Tea_Pot_47': (-3.855, -15.957, 1.0),                                   # fixed
+    # 'Water_Cooler_33': (-4.703, -15.558, 1.132),                            # fixed
+    # 'Waste_Bin_24': (-1.982, -16.681, 0.91),                                # fixed
+    # 'Waste_Bin_27': (-1.7636072635650635, -17.074087142944336, 0.5),
+    # 'Sink_28': (-2.754, -15.645, 1.046),                                    # fixed
+    # 'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
+    # 'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
+    'Double_doors_112': (-8.365, -18.440, 1.021)
+    }
+    return objects
 
 
 if __name__ == "__main__":

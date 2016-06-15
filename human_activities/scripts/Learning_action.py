@@ -20,6 +20,14 @@ class Learning_server(object):
 
         ol = Offline_ActivityLearning()
 
+        """get SOMA2 Objects""""
+        if not self._as.is_preempt_requested():
+            ol.get_soma_objects()
+
+        """load skeleton detections over all frames"""
+        if not self._as.is_preempt_requested():
+            ol.get_events
+
         """encode all the observations using QSRs"""
         if not self._as.is_preempt_requested():
             ol.encode()
