@@ -26,7 +26,9 @@ class ManageConsentWebpage(object):
         self.recording = False
         rospy.Service('signal_recording_started', Empty, self.started_recording_callback)
 
-
+        # used to return to main webpage if there is no detection
+        rospy.Service('return_to_main_webpage', Empty, self.return_to_main_webpage_callback)
+        
         self.consent_as = actionlib.SimpleActionServer('manage_consent', ManageConsentAction, self.execute_cb, False)
         self.consent_as.start()
 
@@ -96,6 +98,15 @@ class ManageConsentWebpage(object):
         strands_webserver.client_utils.display_relative_page(self.display_no, 'recording.html')
         self.recording = True
         return EmptyResponse()
+        
+        
+    def return_to_main_webpage_callback(self, req):
+        print "return to main webpage"
+        http_root = os.path.join(roslib.packages.get_pkg_dir('tsc_robot_ui'), 'pages')
+        strands_webserver.client_utils.set_http_root(http_root)
+        strands_webserver.client_utils.display_relative_page(self.display_no, 'index.html')
+        # self.recording = False
+        return EmptyResponse()       
         
         # else:
         #     print "back to original webpage"
