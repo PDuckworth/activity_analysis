@@ -7,6 +7,8 @@ project(consent_tsc)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  actionlib
+  actionlib_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -42,32 +44,29 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * uncomment the generate_messages entry below
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
-## Generate messages in the 'msg' folder
-# add_message_files(
-#    FILES
-# )
+# Generate messages in the 'msg' folder
+add_message_files(
+   FILES
+   ConsentResult.msg
+)
 
-## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+# Generate services in the 'srv' folder
+add_service_files(
+  FILES
+  UserConsent.srv
+)
 
-## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
+# Generate actions in the 'action' folder
+add_action_files(
+  FILES
+  ManageConsent.action
+)
 
-## Generate added messages and services with any dependencies listed here
-#generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-#   geometry_msgs
-#)
-
+# Generate added messages and services with any dependencies listed here
+generate_messages(
+  DEPENDENCIES
+  actionlib_msgs
+)
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
 ################################################
