@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="recording.css">
+    <script type="text/javascript" src="js_scripts/eventemitter2.min.js"></script>
+    <script type="text/javascript" src="js_scripts/roslib.min.js"></script>
+    <script src="js_scripts/jquery.min.js"></script>
+    <script type="text/javascript" type="text/javascript">
+        // Connecting to ROS
+        // -----------------
+
+        $(document).ready(function() {
+        	var t0,t1,t2;            
+            // $("#feedback-buttons").hide();
+            $("#thanks-screen").hide();
+            var timestamp = +new Date;            
+        });
+
+
+        var ros = new ROSLIB.Ros({
+            url: 'ws://localhost:9090'
+        });
+
+        ros.on('connection', function() {
+            console.log('Connected to websocket server.');
+        });
+
+        ros.on('error', function(error) {
+            console.log('Error connecting to websocket server: ', error);
+        });
+
+        ros.on('close', function() {
+            console.log('Connection to websocket server closed.');
+        });
+
+        function sendConsent(val) {
+
+            console.log('consent: ' + val)
+
+            var request = new ROSLIB.ServiceRequest({});
+         
+           
+
+            var request = new ROSLIB.ServiceRequest({
+              result : val,              
+            });
+
+            var consentClient = new ROSLIB.Service({
+                ros : ros,
+                name : '/user_consent_provided',
+                serviceType : 'consent_tsc/UserConsent'
+            });
+
+            consentClient.callService(request, function(result) {
+              console.log('Result for service call on '+ result);
+          });
+          }
+
+        // function reloadImages() {
+        //     $('.everything img').attr('src', "images/image1.jpeg?random=" + new Date().getTime());
+        //     $('.depthskel img').attr('src', "images/image2.jpeg?random=" + new Date().getTime());
+        //     $('.skel img').attr('src', "images/image3.jpeg?random=" + new Date().getTime());
+        //     $('.nothing img').attr('src', "images/image4.gif?random=" + new Date().getTime());
+        //     t1 = setTimeout(showmain, 300000);
+        // }
+
+
+
+
+    </script>
+</head>
+
+<body>
+    <div id='feedback-buttons'>
+        <h1>LUCIE DATA RECORDING</h1>
+        <p id='question'>Please can we store the data we have just recorded?
+            <cr> Please indicate your consent below.</p>
+        <div class="container">
+            <a href="#" onclick="sendConsent(2)" class="myButton everything"><img src="images/image1.jpeg"></img>
+                <p>Video Data</p>
+            </a>
+            <a href="#" onclick="sendConsent(1)" class="myButton depthskel"><img src="images/image2.jpeg"></img>
+                <p>Anonymous Video Data</p>
+            </a>
+            <a href="#" onclick="sendConsent(0)" class="myButton nothing"><img src="images/image4.gif"></img>
+                <p>No Data Stored</p>
+            </a>
+           
+        </div>
+    </div>
+    <div id='thanks-screen'>
+        <h1>THANK YOU FOR YOUR COOPERATION</h1>
+    </div>
+
+</body>
+
+</html>
