@@ -23,9 +23,9 @@ def get_map_frame_qsrs(file, world_trace, dynamic_args):
     qsrlib = QSRlib()
     req = QSRlib_Request_Message(which_qsr="qtcbs", input_data=world_trace, dynamic_args=dynamic_args)
     qsr_map_frame = qsrlib.request_qsrs(req_msg=req)
-    print "    ", file, "episodes = "
-    for i in qsr_map_frame.qstag.episodes:
-        print i
+    # print "    ", file, "episodes = "
+    # for i in qsr_map_frame.qstag.episodes:
+    #     print i
     return qsr_map_frame
 
 def get_object_frame_qsrs(file, world_trace, objects, joint_types, dynamic_args):
@@ -38,7 +38,7 @@ def get_object_frame_qsrs(file, world_trace, objects, joint_types, dynamic_args)
 
     dynamic_args['argd'] = {"qsrs_for": qsrs_for, "qsr_relations_and_values": {'Touch': 0.5, 'Near': 0.75,  'Medium': 1.5, 'Ignore': 10}}
     # dynamic_args['argd'] = {"qsrs_for": qsrs_for, "qsr_relations_and_values": {'Touch': 0.2, 'Ignore': 10}}
-    dynamic_args['qtcbs'] = {"qsrs_for": qsrs_for, "quantisation_factor": 0.05, "validate": False, "no_collapse": True} # Quant factor is effected by filters to frame rate
+    dynamic_args['qtcbs'] = {"qsrs_for": qsrs_for, "quantisation_factor": 0.01, "validate": False, "no_collapse": True} # Quant factor is effected by filters to frame rate
     dynamic_args["qstag"] = {"object_types": joint_types, "params": {"min_rows": 1, "max_rows": 1, "max_eps": 2}}
 
     qsrlib = QSRlib()
@@ -51,8 +51,8 @@ def get_object_frame_qsrs(file, world_trace, objects, joint_types, dynamic_args)
         print ep
 
     for cnt, h in  zip(qsr_object_frame.qstag.graphlets.histogram, qsr_object_frame.qstag.graphlets.code_book):
-        print "\n", cnt, h, qsr_object_frame.qstag.graphlets.graphlets[h]
-
+        print cnt, h#, qsr_object_frame.qstag.graphlets.graphlets[h]
+    print "\n"
     return qsr_object_frame
 
 def get_joint_frame_qsrs(file, world_trace, joint_types, dynamic_args):

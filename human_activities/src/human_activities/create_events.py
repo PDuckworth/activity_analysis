@@ -12,8 +12,6 @@ import math
 import matplotlib.pyplot as plt
 from tf.transformations import euler_from_quaternion
 from qsrlib_io.world_trace import Object_State, World_Trace
-# from plot_events import *
-# from learn_qsrs import *
 
 def save_event(e, loc=None):
     """Save the event into an Events folder"""
@@ -59,7 +57,6 @@ class event(object):
         self.map_frame_data = {}        #type: dict[timepoint][joint_id]= (x, y, z, x2d, y2d)
         self.robot_data = {}            #type: dict[timepoint][joint_id]= ((x, y, z), (roll, pitch, yaw))
         # self.world = World_Trace()
-
 
     def apply_mean_filter(self, window_length=3):
         """Once obtained the joint x,y,z coords.
@@ -140,10 +137,7 @@ class event(object):
         self.map_world = world
 
 
-
-
-
-def get_event(recording, path, soma_objects, reduce_frame_rate=2, mean_window=5):
+def get_event(recording, path, soma_objects, config_data, reduce_frame_rate=2, mean_window=5):
     """create event class from a recording"""
 
     """directories containing the data"""
@@ -155,21 +149,27 @@ def get_event(recording, path, soma_objects, reduce_frame_rate=2, mean_window=5)
     try:
         uuid = recording.split('_')[-2]
         waypoint = recording.split('_')[-1]
-        date = ('_').join(recording.split('_')[:-2])
+        date = recording.split('_')[0]
+        time = recording.split('_')[1]
     except:
-        print "no recording found"
-        return
+         print "recording not found"
+         return
+    # print uuid, waypoint, date, time
 
     """ Get the robot's meta data"""
-    if os.path.isfile(os.path.join(d1, 'meta.txt')):
-        meta = open(os.path.join(d1, 'meta.txt'), 'r')
-        for count, line in enumerate(meta):
-            if count == 0: region_id = line.split('\n')[0].split(':')[1]
-            elif count == 1: region = line.split('\n')[0].split(':')[1]
-            elif count == 2: pan = int(line.split('\n')[0].split(':')[1])
-            elif count == 3: tilt = int(line.split('\n')[0].split(':')[1])
+    # if os.path.isfile(os.path.join(d1, 'meta.txt')):
+    #     meta = open(os.path.join(d1, 'meta.txt'), 'r')
+    #     for count, line in enumerate(meta):
+    #         if count == 0: region_id = line.split('\n')[0].split(':')[1]
+    #         elif count == 1: region = line.split('\n')[0].split(':')[1]
+    #         elif count == 2: pan = int(line.split('\n')[0].split(':')[1])
+    #         elif count == 3: tilt = int(line.split('\n')[0].split(':')[1])
+    pan = config_data['pan']
+    tilt = config_data['tilt']
+    # pvel = config_data['pvel']
+    # tvel = config_data['tvel']
+    print "uid: %s. date: %s. waypoint: %s. pan: %s. tilt: %s" % (uuid, date, waypoint, pan, tilt)
 
-    #print "uid: %s. date: %s. waypoint: %s. pan: %s. tilt: %s" % (uuid, date, waypoint, pan, tilt)
 
     """initialise event"""
     e = event(uuid, d1, waypoint)
@@ -284,6 +284,10 @@ def get_event(recording, path, soma_objects, reduce_frame_rate=2, mean_window=5)
             j = (x_mf, y_mf, z_mf)
             e.map_frame_data[frame][joint] = j
 
+    # for i in e.sorted_timestamps:
+    #     print i, e.map_frame_data[i]['head'], e.map_frame_data[i]['left_hand']#, e.map_frame_data[i]['right_hand'] #e.skeleton_data[i]['right_hand'], e.map_frame_data[i]['right_hand']   , yaw, pitch
+    # sys.exit(1)
+
     e.get_world_frame_trace(soma_objects)
     save_event(e, "Events")
 
@@ -292,26 +296,38 @@ def get_soma_objects(region=None):
     #todo: read from soma2 mongo store.
 
     objects = {}
-    objects['Kitchen'] = {}
-    objects['Long_room'] = {}
-    objects['Robot_lab'] = {}
-    objects['Staff_Room'] = {}
+    # objects['Kitchen'] = {}
+    # objects['Reception'] = {}
+    # objects['Hosotality'] = {}
+    # objects['Corporate'] = {}
+    # objects['Support'] = {}
 
-    # kitchen objects
     objects['Kitchen'] = {
-    'Printer_console_11': (-8.957, -17.511, 1.1),                           # fixed
-    # 'Printer_paper_tray_110': (-9.420, -18.413, 1.132),                     # fixed
-    # 'Shelves_44': (-8.226, -15.223, 1.0),
-    'Microwave_3': (-4.835, -15.812, 1.0),                                  # fixed
-    'Kettle_32': (-2.511, -15.724, 1.41),                                   # fixed
-    'Tea_Pot_47': (-3.855, -15.957, 1.0),                                   # fixed
-    # 'Water_Cooler_33': (-4.703, -15.558, 1.132),                            # fixed
-    # 'Waste_Bin_24': (-1.982, -16.681, 0.91),                                # fixed
-    # 'Waste_Bin_27': (-1.7636072635650635, -17.074087142944336, 0.5),
-    # 'Sink_28': (-2.754, -15.645, 1.046),                                    # fixed
-    # 'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
-    # 'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
-    'Double_doors_112': (-8.365, -18.440, 1.021)
+    'Microwave_1':  (-8.957, -17.511, 1.1),
+    'Sink_2':  (-8.957, -17.511, 1.1),
+    'Fruit_bowl_3':  (-8.957, -17.511, 1.1),
+    'Fruit_bowl_11':  (-8.957, -17.511, 1.1),
+    'Dishwasher_4':  (-8.957, -17.511, 1.1),
+    'Coffee_Machine_5': (-50.35, -5.24, 1.51)
+    }
+
+    objects['Reception'] = {
+    'Coffee_Machine_6': (-50.35, -5.24, 1.51),
+    'Fridge_7': (-50.35, -5.24, 1.51)
+    }
+
+    objects['Hospitality'] = {
+    'Printer_8':  (-8.957, -17.511, 1.1),
+    'Sink_9':  (-8.957, -17.511, 1.1),
+    'Coffee_Machine_10': (-50.35, -5.24, 1.51)
+    }
+
+    objects['Corporate'] = {
+    'Printer_11':  (-8.957, -17.511, 1.1)
+    }
+
+    objects['Support'] = {
+    'Printer_12':  (-8.957, -17.511, 1.1)
     }
     return objects
 

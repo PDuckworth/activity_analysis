@@ -17,28 +17,29 @@ class Learning_server(object):
 
 
     def execute(self, goal):
+        rerun = 1
+        parallel = 0
 
-        ol = Offline_ActivityLearning()
+        while not self._as.is_preempt_requested():
+            o = Offline_ActivityLearning(rerun_all=rerun)
 
-        """get SOMA2 Objects""""
-        if not self._as.is_preempt_requested():
+            """get SOMA2 Objects""""
             ol.get_soma_objects()
 
-        """load skeleton detections over all frames"""
-        if not self._as.is_preempt_requested():
-            ol.get_events
+            """load skeleton detections over all frames"""
+            ol.get_events()
 
-        """encode all the observations using QSRs"""
-        if not self._as.is_preempt_requested():
-            ol.encode()
+            """encode all the observations using QSRs"""
+            ol.encode_qsrs(parallel)
 
-        """create histograms with global code book"""
-        if not self._as.is_preempt_requested():
-            ol.make_histograms()
+            """create histograms with global code book"""
+            ol.make_temp_histograms_sequentially()
 
-        """create tf-idf and LSA classes"""
-        if not self._as.is_preempt_requested():
+            o.make_term_doc_matrix()
+
+            """create tf-idf and LSA classes"""
             ol.learn()
+
 
         self._as.set_succeeded(LearningResult())
 
