@@ -33,7 +33,7 @@ def get_object_frame_qsrs(file, world_trace, objects, joint_types, dynamic_args)
     qsrs_for=[]
     for ob in objects:
         qsrs_for.append((str(ob), 'left_hand'))
-        #qsrs_for.append((str(ob), 'right_hand'))
+        qsrs_for.append((str(ob), 'right_hand'))
         #qsrs_for.append((str(ob), 'torso'))
 
     dynamic_args['argd'] = {"qsrs_for": qsrs_for, "qsr_relations_and_values": {'Touch': 0.5, 'Near': 0.75,  'Medium': 1.5, 'Ignore': 10}}
@@ -50,9 +50,9 @@ def get_object_frame_qsrs(file, world_trace, objects, joint_types, dynamic_args)
     for ep in qsr_object_frame.qstag.episodes:
         print ep
 
-    for cnt, h in  zip(qsr_object_frame.qstag.graphlets.histogram, qsr_object_frame.qstag.graphlets.code_book):
-        print cnt, h#, qsr_object_frame.qstag.graphlets.graphlets[h]
-    print "\n"
+    # for cnt, h in  zip(qsr_object_frame.qstag.graphlets.histogram, qsr_object_frame.qstag.graphlets.code_book):
+    #     print cnt, h#, qsr_object_frame.qstag.graphlets.graphlets[h]
+    print ""
     return qsr_object_frame
 
 def get_joint_frame_qsrs(file, world_trace, joint_types, dynamic_args):

@@ -296,38 +296,38 @@ def get_soma_objects(region=None):
     #todo: read from soma2 mongo store.
 
     objects = {}
-    # objects['Kitchen'] = {}
-    # objects['Reception'] = {}
-    # objects['Hosotality'] = {}
-    # objects['Corporate'] = {}
-    # objects['Support'] = {}
+    objects['Kitchen'] = {}
+    objects['Reception'] = {}
+    objects['Hopotality'] = {}
+    objects['Corporate'] = {}
+    objects['Support'] = {}
 
     objects['Kitchen'] = {
-    'Microwave_1':  (-8.957, -17.511, 1.1),
-    'Sink_2':  (-8.957, -17.511, 1.1),
-    'Fruit_bowl_3':  (-8.957, -17.511, 1.1),
-    'Fruit_bowl_11':  (-8.957, -17.511, 1.1),
-    'Dishwasher_4':  (-8.957, -17.511, 1.1),
-    'Coffee_Machine_5': (-50.35, -5.24, 1.51)
+    'Microwave_1':  (-53.894511011092348, -5.6271549435167918, 1.2075203138621333),
+    'Sink_2':  (-55.902430164089097, -5.3220418631789883, 0.95348616325025226),
+    'Fruit_bowl_3':  (-55.081272358597374, -8.5550720977828973, 1.2597648941515749),
+    #'Fruit_bowl_11':  (-8.957, -17.511, 1.1),
+    'Dishwasher_4':  (-55.313495480985964, -5.822285141172836, 0.87860846828010275),
+    'Coffee_Machine_5': (-50.017233832554183, -5.4918825204775921, 1.3139597647929069)
     }
 
     objects['Reception'] = {
-    'Coffee_Machine_6': (-50.35, -5.24, 1.51),
-    'Fridge_7': (-50.35, -5.24, 1.51)
+    'Coffee_Machine_6': (-5.5159040452346737, 28.564135219405774, 1.3149322505645362),
+    #'Fridge_7': (-50.35, -5.24, 1.51)
     }
 
     objects['Hospitality'] = {
-    'Printer_8':  (-8.957, -17.511, 1.1),
-    'Sink_9':  (-8.957, -17.511, 1.1),
-    'Coffee_Machine_10': (-50.35, -5.24, 1.51)
+    'Printer_8':  (-1.6876578896088092, -5.9433505603441326, 1.1084470787101761),
+    #'Sink_9':  (-8.957, -17.511, 1.1),
+    #'Coffee_Machine_10': (-50.35, -5.24, 1.51)
     }
 
     objects['Corporate'] = {
-    'Printer_11':  (-8.957, -17.511, 1.1)
+    'Printer_11':  (-23.734682053245283, -14.096880839756942, 1.106873440473277),
     }
 
     objects['Support'] = {
-    'Printer_12':  (-8.957, -17.511, 1.1)
+    #'Printer_12':  (-8.957, -17.511, 1.1),
     }
     return objects
 

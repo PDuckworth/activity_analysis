@@ -16,6 +16,7 @@ import multiprocessing as mp
 import human_activities.create_events as ce
 import human_activities.encode_qsrs as eq
 import human_activities.histograms as h
+import human_activities.tfidf as tfidf
 
 class Offline_ActivityLearning(object):
 
@@ -27,13 +28,17 @@ class Offline_ActivityLearning(object):
         self.reduce_frame_rate = reduce_frame_rate
         self.joints_mean_window = joints_mean_window
         self.qsr_mean_window = qsr_mean_window
+        self.events_path = os.path.join(self.path, 'Events')
         self.processed_path = os.path.join(self.path, 'QSR_Worlds')
         self.load_config()
 
         if rerun_all:
             for f in os.listdir(self.processed_path):
-                print f, os.path.join(self.processed_path, f)
+                # print f, os.path.join(self.processed_path, f)
                 os.remove(os.path.join(self.processed_path, f))
+            for f in os.listdir(self.events_path):
+                os.remove(os.path.join(self.events_path, f))
+
 
     def load_config(self):
         """load the config file from the data recordings (from tsc)"""
@@ -49,9 +54,11 @@ class Offline_ActivityLearning(object):
             except:
                 print "no config file found"
 
-        # make this smarter - use Somaroi?
-        self.soma_roi_config = {'KitchenTableLow':'Kitchen', 'KitchenTableHigh':'Kitchen', 'KitchenCounter1':'Kitchen', 'KitchenCounter2':'Kitchen', 'KitchenCounter3':'Kitchen',
-                                'ReceptionDesk':'Reception', 'HospActRec1':'Hospitality', 'HospActRec4':'Hopotality', 'CorpActRec3':'Corporate', 'SuppActRec1': 'Support' }
+        # make this smarter - use SomaRoi?
+        self.soma_roi_config = {'KitchenTableLow':'Kitchen', 'KitchenTableHigh':'Kitchen',
+                                'KitchenCounter1':'Kitchen', 'KitchenCounter2':'Kitchen', 'KitchenCounter3':'Kitchen',
+                                'ReceptionDesk':'Reception', 'HospActRec1':'Hospitality',
+                                'HospActRec4':'Hospitality', 'CorpActRec3':'Corporate', 'SuppActRec1': 'Support' }
 
     def get_soma_objects(self):
         """srv call to mongo and get the list of objects and locations"""
@@ -71,6 +78,7 @@ class Offline_ActivityLearning(object):
                 # print "geting skeleton data: ", recording, waypoint, region
                 # print "s", self.soma_objects[region]
                 # print "p", self.config[waypoint]
+                # print ">>", recording, waypoint, region
                 ce.get_event(recording, path, self.soma_objects[region], self.config[waypoint], self.reduce_frame_rate, self.joints_mean_window)
             else:
                 print "already processed: %s" % recording
@@ -102,30 +110,48 @@ class Offline_ActivityLearning(object):
         self.len_of_code_book = h.create_temp_histograms(self.path)
         return True
 
-    def make_term_doc_matrix(self):
+    def make_term_doc_matrix(self, low_instances=3):
+        print "\nTERM FREQ MAT:"
         path = os.path.join(self.path, 'Histograms')
-        list_of_histograms =[ (recording, path) for recording in sorted(os.listdir(path)) ]
-        print list_of_histograms
-        sys.exit(1)
+        accumulate_path = os.path.join(self.path, 'accumulate_data/features')
 
+        try:
+            len_of_code_book = self.len_of_code_book
+        except AttributeError as e:
+            print "temp histogram method not run. length fixed to 18"
+            len_of_code_book = 18  # change this to check for the longest histgoram in the directory :(
+
+        list_of_histograms =[ (recording, path, len_of_code_book) for recording in sorted(os.listdir(path)) ]
+        parallel = 1
         if parallel:
             num_procs = mp.cpu_count()
             pool = mp.Pool(num_procs)
             chunk_size = int(np.ceil(len(os.listdir(path))/float(num_procs)))
-            pool.map(eq.worker_qsrs, list_of_events, chunk_size)
+            joint_results = pool.map(h.worker_padd, list_of_histograms, chunk_size)
             pool.close()
             pool.join()
         else: # for sequential debugging:
-            for cnt, event in enumerate(list_of_events):
-                print "encoding QSRs: ", event[0]
-                eq.worker_qsrs(event)
+            joint_results = []
+            for cnt, event in enumerate(list_of_histograms):
+                print "adding to feature space: ", event[0]
+                joint_results.append(h.worker_padd(event))
 
-
-        #h.create_term_doc_matrix(path, )
+        labels = [lab for (lab, hist) in joint_results]
+        f = open(accumulate_path + "/labels.p", "w")
+        pickle.dump(labels, f)
+        f.close()
+        features = np.vstack([hist for (lab, hist) in joint_results])
+        new_features = h.remove_low_instance_graphlets(self.path, features, low_instances)
+        # for i in new_features:
+        #     print ">>", i[:35]
         return True
 
 
-    def learn(self):
+    def learn_activities(self, singular_val_threshold=2.0, assign_clstr=0.1):
+        tf_idf_scores = tfidf.get_tf_idf_scores(self.path)
+        #print tf_idf_scores
+        tfidf.get_svd_learn_clusters(self.path, tf_idf_scores, singular_val_threshold, assign_clstr)
+
         return True
 
 
@@ -134,15 +160,15 @@ class Offline_ActivityLearning(object):
 if __name__ == "__main__":
     #rospy.init_node("Offline Activity Learner")
 
-    rerun = 1
+    rerun = 0
     parallel = 0
+    singular_val_threshold = 8
+    assign_clstr = 0.01
 
-    o = Offline_ActivityLearning(rerun_all=rerun)
-
+    o = Offline_ActivityLearning(reduce_frame_rate=3, rerun_all=rerun)
     o.get_soma_objects()
     o.get_events()
     o.encode_qsrs(parallel)
     o.make_temp_histograms_sequentially()
-    # o.make_term_doc_matrix()
-
-    #o.learn()
+    o.make_term_doc_matrix(low_instances=5)
+    o.learn_activities(singular_val_threshold, assign_clstr)

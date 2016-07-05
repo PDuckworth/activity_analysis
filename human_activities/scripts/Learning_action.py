@@ -19,6 +19,7 @@ class Learning_server(object):
     def execute(self, goal):
         rerun = 1
         parallel = 0
+        singular_val_threshold = 10
 
         while not self._as.is_preempt_requested():
             o = Offline_ActivityLearning(rerun_all=rerun)
@@ -35,11 +36,10 @@ class Learning_server(object):
             """create histograms with global code book"""
             ol.make_temp_histograms_sequentially()
 
-            o.make_term_doc_matrix()
+            o.make_term_doc_matrix(low_instances=5)
 
             """create tf-idf and LSA classes"""
-            ol.learn()
-
+            ol.learn_activities(singular_val_threshold)
 
         self._as.set_succeeded(LearningResult())
 
