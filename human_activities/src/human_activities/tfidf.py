@@ -73,19 +73,23 @@ def get_tf_idf_scores(path, input_data=None, vis=False):
     return tf_idf_scores
 
 
-def genome(data1, yrange, it):
+def genome(path, data1, yrange, it):
     t = np.arange(0.0, len(data1), 1)
     #print "data", min(data1), max(data1), sum(data1)/float(len(data1))
 
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
+
+    ax1.set_xlim([-1,65])
     ax1.vlines(t, [0], data1)
     ax1.set_xlabel('code words', fontsize=20)
-    #ax1.set_ylim([-0.1,0.1])
     ax1.set_ylim(yrange)
     title = 'Latent Concept %s' % it
     ax1.set_title(title, fontsize=25)
     ax1.grid(True)
+    filename = path + "accumulate_data/graphs/genome_%s.png" %it
+    print filename
+    fig.savefig(filename, bbox_inches='tight')
     plt.show()
 
 
@@ -113,6 +117,9 @@ def get_svd_learn_clusters(path, data=None, sing_threshold=2.0, assign_clstr=0.1
 
     with open(path + "accumulate_data/features/labels.p", 'r') as f:
         labels = pickle.load(f)
+
+    with open(path + "accumulate_data/features/graphlets.p", 'r') as f:
+        graphlets = pickle.load(f)
 
     (N, f) = data.shape
     all_components = min(N,f)
@@ -148,7 +155,13 @@ def get_svd_learn_clusters(path, data=None, sing_threshold=2.0, assign_clstr=0.1
         if min(i)<min_: min_ = min(i)
 
     for i, vocabulary in enumerate(VT):
-        genome(vocabulary, [min_, max_], i)
+        print i, vocabulary
+
+        for c, v in enumerate(vocabulary):
+            if v > 0.1:
+                print "\n",c,  graphlets[c]
+
+        genome(path, vocabulary, [min_, max_], i)
 
     print "\n%s Activities Learnt" % best_components
     activities_path = os.path.join(path, "accumulate_data", "activities")

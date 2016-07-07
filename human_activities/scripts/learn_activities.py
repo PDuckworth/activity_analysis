@@ -57,6 +57,7 @@ class Offline_ActivityLearning(object):
         # make this smarter - use SomaRoi?
         self.soma_roi_config = {'KitchenTableLow':'Kitchen', 'KitchenTableHigh':'Kitchen',
                                 'KitchenCounter1':'Kitchen', 'KitchenCounter2':'Kitchen', 'KitchenCounter3':'Kitchen',
+                                'KitchenDemo':'Kitchen',
                                 'ReceptionDesk':'Reception', 'HospActRec1':'Hospitality',
                                 'HospActRec4':'Hospitality', 'CorpActRec3':'Corporate', 'SuppActRec1': 'Support' }
 
@@ -162,7 +163,7 @@ if __name__ == "__main__":
 
     rerun = 0
     parallel = 0
-    singular_val_threshold = 8
+    singular_val_threshold = 9
     assign_clstr = 0.01
 
     o = Offline_ActivityLearning(reduce_frame_rate=3, rerun_all=rerun)
