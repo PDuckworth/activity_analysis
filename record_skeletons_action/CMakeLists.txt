@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(activity_data)
+project(record_skeletons_action)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -7,8 +7,8 @@ project(activity_data)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
-  geometry_msgs
-  message_generation
+  actionlib
+  actionlib_msgs
 #  skeleton_tracker
 )
 
@@ -45,35 +45,27 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * uncomment the generate_messages entry below
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
-## Generate messages in the 'msg' folder
-add_message_files(
-   FILES
-   QSRlibMongo.msg
-   QsrsToMongo.msg
-   Graphlets.msg
+# Generate messages in the 'msg' folder
+#add_message_files(
+#   FILES
+#)
+
+# Generate services in the 'srv' folder
+#add_service_files(
+#  FILES
+#  DeleteImages.srv
+#)
+
+# Generate actions in the 'action' folder
+add_action_files(
+  DIRECTORY action
+  FILES skeleton.action
 )
 
-## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
-
-## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
-
-## Generate added messages and services with any dependencies listed here
+# Generate added messages and services with any dependencies listed here
 generate_messages(
-   DEPENDENCIES
-   std_msgs
-   geometry_msgs
+ DEPENDENCIES actionlib_msgs
 )
-
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
 ################################################
@@ -105,8 +97,8 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES activity_data
-   CATKIN_DEPENDS rospy std_msgs geometry_msgs
+#   LIBRARIES activity_data
+   CATKIN_DEPENDS rospy std_msgs #skeleton_tracker
 #  DEPENDS system_lib
 )
 

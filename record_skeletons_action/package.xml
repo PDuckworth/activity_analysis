@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>activity_data</name>
+  <name>record_skeletons_action</name>
   <version>0.0.0</version>
-  <description>The activity_data package</description>
+  <description>Action to record skeleton detections, and check for consent</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
@@ -42,14 +42,13 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>rospy</build_depend>
   <build_depend>std_msgs</build_depend>
-  <build_depend>geometry_msgs</build_depend>
-  <build_depend>message_generation</build_depend>
+  <build_depend>actionlib</build_depend>
+  <build_depend>actionlib_msgs</build_depend>
  
-
   <run_depend>rospy</run_depend>
   <run_depend>std_msgs</run_depend>
-  <run_depend>geometry_msgs</run_depend>
-  <run_depend>message_generation</run_depend>
+  <run_depend>actionlib</run_depend>
+  <run_depend>actionlib_msgs</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

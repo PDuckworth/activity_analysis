@@ -56,7 +56,7 @@ class SkeletonManager(object):
         self.camera = "head_xtion"
 
         # listeners
-        rospy.Subscriber("skeleton_data/new_incremental", skeleton_message, self.incremental_callback)
+        rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
         rospy.Subscriber('/'+self.camera+'/rgb/image_color', sensor_msgs.msg.Image, callback=self.rgb_callback, queue_size=10)
         rospy.Subscriber('/'+self.camera+'/rgb/sk_tracks', sensor_msgs.msg.Image, callback=self.rgb_sk_callback, queue_size=10)
         rospy.Subscriber('/'+self.camera+'/depth/image' , sensor_msgs.msg.Image, self.depth_callback, queue_size=10)
@@ -73,7 +73,7 @@ class SkeletonManager(object):
 
         # only publish the skeleton data when the person is far enough away (distance threshold)
         # maximum number of frames for one detection
-        self.max_num_frames = 1000
+        self.max_num_frames = 3000
         self.dist_thresh = 0
         self.dist_flag = 1
 

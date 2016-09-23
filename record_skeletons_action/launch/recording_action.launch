@@ -1,0 +1,30 @@
+<launch>
+
+  <arg name="machine" default="localhost" />
+  <arg name="user" default="" />
+  <arg name="pub_skeleton" default="True"/>
+  <arg name="delete_service" default="True"/>
+  <arg name="log_skeleton" default="False"/>
+  <arg name="message_store" default="people_skeleton"/>
+  <arg name="dataset_path" default="/home/strands/SkeletonDataset/" />
+
+  <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true"/>
+
+  <node pkg="skeleton_tracker" type="skeleton_action.py" name="skeleton_action" output="screen" respawn="true">
+   	<param name="dataset_path" type="string" value="/$(arg dataset_path)"/>
+  </node>
+
+  <group if="$(arg delete_service)">
+    <node pkg="skeleton_tracker" type="data_deleter.py" name="data_deleter" output="screen" respawn="true">
+    </node>
+  </group>
+
+  <group if="$(arg pub_skeleton)">
+    <!-- Transforms /tf to /skeleton_data if requested -->
+    <node pkg="skeleton_tracker" type="skeleton_publisher.py" name="skeleton_publisher" output="screen" respawn="false">
+          <param name="log_skeleton" value="$(arg log_skeleton)" type="bool"/>
+          <param name="message_store" value="$(arg message_store)" type="string"/>
+    </node>
+  </group>
+
+</launch>
