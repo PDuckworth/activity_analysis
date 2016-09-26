@@ -91,6 +91,7 @@ class SkeletonManager(object):
         en = self.accumulate_data[uuid][-1].time
 
         msg = skeleton_complete(uuid = uuid, date = self.date, \
+                                time = self.sk_mapping[uuid]['time'], \
                                 skeleton_data = self.accumulate_data[uuid], \
                                 number_of_detections = len(self.accumulate_data[uuid]), \
                                 map_name = self.map_info, current_topo_node = self.current_node, \
@@ -270,7 +271,8 @@ class SkeletonManager(object):
         elif msg.message == "Visible" and msg.uuid in self.sk_mapping:
             self.sk_mapping[msg.uuid]["state"] = "Tracking"
         elif msg.message == "Stopped tracking" and msg.uuid in self.accumulate_data:
-            self._publish_complete_data(msg.userID, msg.uuid)
+            if len(self.accumulate_data[msg.uuid]) != 0:
+                self._publish_complete_data(msg.userID, msg.uuid)   #only publish if data captured
 
     def robot_callback(self, msg):
         self.robot_pose = msg
