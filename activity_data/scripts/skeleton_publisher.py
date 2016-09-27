@@ -83,13 +83,21 @@ class SkeletonManager(object):
             self._store_client = MessageStoreProxy(collection=self._message_store, database=self._database)
 
 
-    def _publish_complete_data(self, subj, uuid):
+    def _publish_complete_data(self, subj, uuid, vis=False):
         """when user goes "out of scene" publish their accumulated data"""
         # print ">> publishing these: ", uuid, len(self.accumulate_data[uuid])
 
         st = self.accumulate_data[uuid][0].time
         en = self.accumulate_data[uuid][-1].time
-
+        if vis:
+            print ">>>"
+            print "storing: ", uuid, type(uuid)
+            print "date: ", self.date, type(self.date)
+            print "number of detectons: ", len(self.accumulate_data[uuid]), type(len(self.accumulate_data[uuid]))
+            print "map info: ", self.map_info, type(self.map_info)        
+            print "current node: ", self.current_node, type(self.current_node)
+            print "start/end rostime:", st, type(st), en, type(en)
+                
         msg = skeleton_complete(uuid = uuid, date = self.date, \
                                 time = self.sk_mapping[uuid]['time'], \
                                 skeleton_data = self.accumulate_data[uuid], \
