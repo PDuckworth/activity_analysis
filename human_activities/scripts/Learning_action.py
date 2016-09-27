@@ -7,11 +7,13 @@ from learn_activities import Offline_ActivityLearning
 from human_activities.msg import LearningAction, LearningResult
 
 class Learning_server(object):
-    def __init__(self):
+    def __init__(self, name= "LearningHumanActivities"):
+
 
         # Start server
         rospy.loginfo("Learning Human ACtivites action server")
-        self._as = actionlib.SimpleActionServer("LearningHumanActivities", LearningHumanActivitiesAction,
+        self._action_name = name
+        self._as = actionlib.SimpleActionServer(self._action_name, LearningHumanActivitiesAction,
             execute_cb=self.execute, auto_start=False)
         self._as.start()
 
@@ -47,5 +49,5 @@ class Learning_server(object):
 if __name__ == "__main__":
     rospy.init_node('LearningHumanActivities_server')
 
-    Learning_server()
+    Learning_server(name = "LearningHumanActivities")
     rospy.spin()
