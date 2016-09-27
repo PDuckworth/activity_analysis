@@ -164,9 +164,10 @@ class ManageConsentWebpage(object):
 
     def get_imgs(self):
         print 'Creating new images for consent'
-        self.create_image({"image_type": "rgb_sk_image"}, 'image1')
-        self.create_image({"image_type": "depth_image"}, 'image2', depth=True)
-        self.create_image({"image_type": "white_sk_image"}, 'image3')
+        #self.create_image({"image_type": "rgb_sk_image"}, 'image1')
+        self.create_image({"image_type": "rgb_image"}, 'image1')
+        #self.create_image({"image_type": "depth_image"}, 'image2', depth=True)
+        #self.create_image({"image_type": "white_sk_image"}, 'image3')
         return
 
 

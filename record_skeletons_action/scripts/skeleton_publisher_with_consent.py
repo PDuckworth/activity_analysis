@@ -32,7 +32,7 @@ class SkeletonManagerConsent(object):
         # listeners
         rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
         rospy.Subscriber('/'+self.camera+'/rgb/image_color', sensor_msgs.msg.Image, callback=self.rgb_callback, queue_size=10)
-        rospy.Subscriber('/'+self.camera+'/rgb/sk_tracks', sensor_msgs.msg.Image, callback=self.rgb_sk_callback, queue_size=10)
+        #rospy.Subscriber('/'+self.camera+'/rgb/sk_tracks', sensor_msgs.msg.Image, callback=self.rgb_sk_callback, queue_size=10)
         rospy.Subscriber('/'+self.camera+'/depth/image' , sensor_msgs.msg.Image, self.depth_callback, queue_size=10)
         rospy.Subscriber("/robot_pose", Pose, callback=self.robot_callback, queue_size=10)
         rospy.Subscriber("/ptu/state", sensor_msgs.msg.JointState, callback=self.ptu_callback, queue_size=1)
@@ -54,7 +54,7 @@ class SkeletonManagerConsent(object):
         self.requested_consent_flag = 0
         self._flag_robot = 0
         self._flag_rgb = 0
-        self._flag_rgb_sk = 0
+        #self._flag_rgb_sk = 0
         self._flag_depth = 0
     
     def reset_data(self):
@@ -62,7 +62,7 @@ class SkeletonManagerConsent(object):
         self.accumulate_robot = {} # accumulates multiple robot msgs
         self.accumulate_robot = {}
         self.accumulate_rgb_images = {}
-        self.accumulate_rgb_sk_images = {}
+        #self.accumulate_rgb_sk_images = {}
         self.accumulate_depth_images = {}
         self.sk_mapping = {}       # holds state of users
 
@@ -73,14 +73,14 @@ class SkeletonManagerConsent(object):
         
     def incremental_callback(self, msg):
         """accumulate all data until consent is requested and accepted"""
-        if self._flag_robot and self._flag_rgb and self._flag_rgb_sk and self._flag_depth and self.requested_consent_flag is 0:
+        if self._flag_robot and self._flag_rgb and self._flag_depth and self.requested_consent_flag is 0:
             if msg.uuid in self.sk_mapping:
                 if self.sk_mapping[msg.uuid]["state"] is 'Tracking' and len(self.accumulate_data[msg.uuid]) <= self.max_num_frames:
                         self.accumulate_data[msg.uuid].append(msg)
                         robot_msg = robot_message(robot_pose = self.robot_pose, PTU_pan = self.ptu_pan, PTU_tilt = self.ptu_tilt)
                         self.accumulate_robot[msg.uuid].append(robot_msg)
                         self.accumulate_rgb_images[msg.uuid].append(self.rgb)
-                        self.accumulate_rgb_sk_images[msg.uuid].append(self.rgb_sk)
+                        #self.accumulate_rgb_sk_images[msg.uuid].append(self.rgb_sk)
                         self.accumulate_depth_images[msg.uuid].append(self.xtion_img_d_rgb)
 
 
@@ -89,7 +89,7 @@ class SkeletonManagerConsent(object):
         self.accumulate_data[msg.uuid] = []
         self.accumulate_robot[msg.uuid] = []
         self.accumulate_rgb_images[msg.uuid] = []
-        self.accumulate_rgb_sk_images[msg.uuid] = []
+        #self.accumulate_rgb_sk_images[msg.uuid] = []
         self.accumulate_depth_images[msg.uuid] = []
 
 
@@ -111,7 +111,7 @@ class SkeletonManagerConsent(object):
         del self.accumulate_data[uuid] 
         del self.accumulate_robot[uuid]
         del self.accumulate_rgb_images[uuid] 
-        del self.accumulate_rgb_sk_images[uuid]
+        #del self.accumulate_rgb_sk_images[uuid]
         del self.accumulate_depth_images[uuid] 
 
 
@@ -157,7 +157,7 @@ class SkeletonManagerConsent(object):
 
                 # save images
                 cv2.imwrite(d+'rgb/rgb_'+f_str+'.jpg', self.accumulate_rgb_images[uuid][f])
-                cv2.imwrite(d+'rgb_sk/sk_'+f_str+'.jpg', self.accumulate_rgb_sk_images[uuid][f])
+                #cv2.imwrite(d+'rgb_sk/sk_'+f_str+'.jpg', self.accumulate_rgb_sk_images[uuid][f])
                 cv2.imwrite(d+'depth/depth_'+f_str+'.jpg', self.accumulate_depth_images[uuid][f])
 
 
@@ -242,14 +242,14 @@ class SkeletonManagerConsent(object):
                 print ' >rgb image received'
                 self._flag_rgb = 1
 
-    def rgb_sk_callback(self, msg):
-        if self.listen_to == 1: 
-            self.rgb_sk_msg = msg   # to serve to the webserver - for consent
-            rgb_sk = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
-            self.rgb_sk = cv2.cvtColor(rgb_sk, cv2.COLOR_RGB2BGR)
-            if self._flag_rgb_sk is 0:
-                print ' >rgb skel image recived'
-                self._flag_rgb_sk = 1
+    #def rgb_sk_callback(self, msg):
+    #    if self.listen_to == 1: 
+    #        self.rgb_sk_msg = msg   # to serve to the webserver - for consent
+    #        rgb_sk = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+    #        self.rgb_sk = cv2.cvtColor(rgb_sk, cv2.COLOR_RGB2BGR)
+    #        if self._flag_rgb_sk is 0:
+    #            print ' >rgb skel image recived'
+    #            self._flag_rgb_sk = 1
 
     def depth_callback(self, msg):
         if self.listen_to == 1:    

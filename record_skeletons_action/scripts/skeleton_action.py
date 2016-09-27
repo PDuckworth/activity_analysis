@@ -169,13 +169,16 @@ class skeleton_server(object):
     def load_images_to_view_on_mongo(self, uuid):
     
         rgb = self.sk_publisher.rgb_msg
-        rgb_sk = self.sk_publisher.rgb_sk_msg
+        #rgb_sk = self.sk_publisher.rgb_sk_msg
         # depth = self.sk_publisher.depth_msg  # not created anymore
         
         # Skeleton on rgb background       
-        query = {"_meta.image_type": "rgb_sk_image"}
-        rgb_sk_img_to_mongo = self.msg_store.update(message=rgb_sk, meta={'image_type':"rgb_sk_image"}, message_query=query, upsert=True)
-
+        #query = {"_meta.image_type": "rgb_sk_image"}
+        #self.msg_store.update(message=rgb_sk, meta={'image_type':"rgb_sk_image"}, message_query=query, upsert=True)
+        
+        query = {"_meta.image_type": "rgb_image"}
+        self.msg_store.update(message=rgb, meta={'image_type':"rgb_image"}, message_query=query, upsert=True)
+        
         # Skeleton on depth background
         # depth = self.sk_publisher.accumulate_rgb_images[uuid][-1]
         # query = {"_meta.image_type": "depth_image"}
@@ -203,10 +206,6 @@ class skeleton_server(object):
             print "config file loaded", self.config.keys()
         except:
             print "no config file found"
-
-    def incremental_callback(self, msg):
-        # print ">", msg.uuid  # doesnt receive empty messages anymore
-        self.skeleton_msg = msg
 
     def reset_ptu(self):
         ptu_goal = PtuGotoGoal();

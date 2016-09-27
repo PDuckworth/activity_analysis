@@ -43,7 +43,7 @@ class SkeletonManager(object):
         self._flag_robot = 0
         self._flag_node = 0
         self._flag_rgb = 0
-        self._flag_rgb_sk = 0
+        #self._flag_rgb_sk = 0
         self._flag_depth = 0
 
         # open cv stuff
@@ -58,7 +58,7 @@ class SkeletonManager(object):
         # listeners
         rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
         rospy.Subscriber('/'+self.camera+'/rgb/image_color', sensor_msgs.msg.Image, callback=self.rgb_callback, queue_size=10)
-        rospy.Subscriber('/'+self.camera+'/rgb/sk_tracks', sensor_msgs.msg.Image, callback=self.rgb_sk_callback, queue_size=10)
+        # rospy.Subscriber('/'+self.camera+'/rgb/sk_tracks', sensor_msgs.msg.Image, callback=self.rgb_sk_callback, queue_size=10)
         rospy.Subscriber('/'+self.camera+'/depth/image' , sensor_msgs.msg.Image, self.depth_callback, queue_size=10)
         rospy.Subscriber("/robot_pose", Pose, callback=self.robot_callback, queue_size=10)
         rospy.Subscriber("/current_node", String, callback=self.node_callback, queue_size=1)
@@ -137,7 +137,7 @@ class SkeletonManager(object):
                 os.makedirs(new_dir+'/skeleton')
                 if self.record_rgb:
                     os.makedirs(new_dir+'/rgb')
-                    os.makedirs(new_dir+'/rgb_sk')
+                    #os.makedirs(new_dir+'/rgb_sk')
 
                 # create the empty bag file (closed in /skeleton_action)
                 # self.bag_file = rosbag.Bag(new_dir+'/detection.bag', 'w')
@@ -158,7 +158,7 @@ class SkeletonManager(object):
             # save images
             if self.record_rgb:
                 cv2.imwrite(d+'rgb/rgb_'+f_str+'.jpg', self.rgb)
-                cv2.imwrite(d+'rgb_sk/sk_'+f_str+'.jpg', self.rgb_sk)
+                #cv2.imwrite(d+'rgb_sk/sk_'+f_str+'.jpg', self.rgb_sk)
             cv2.imwrite(d+'depth/depth_'+f_str+'.jpg', self.xtion_img_d_rgb)
 
             # try:
@@ -246,7 +246,7 @@ class SkeletonManager(object):
 
     def incremental_callback(self, msg):
         """accumulate the multiple skeleton messages until user goes out of scene"""
-        if self._flag_robot and self._flag_rgb and self._flag_rgb_sk and self._flag_depth:
+        if self._flag_robot and self._flag_rgb and self._flag_depth:
             if msg.uuid in self.sk_mapping:
                 if self.sk_mapping[msg.uuid]["state"] is 'Tracking':
                     if len(self.accumulate_data[msg.uuid]) < self.max_num_frames:
@@ -302,13 +302,13 @@ class SkeletonManager(object):
             print ' >rgb image received'
             self._flag_rgb = 1
 
-    def rgb_sk_callback(self, msg):
-        # self.rgb_sk_msg = msg
-        rgb_sk = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
-        self.rgb_sk = cv2.cvtColor(rgb_sk, cv2.COLOR_RGB2BGR)
-        if self._flag_rgb_sk is 0:
-            print ' >rgb skel image received'
-            self._flag_rgb_sk = 1
+    #def rgb_sk_callback(self, msg):
+    #    # self.rgb_sk_msg = msg
+    #    rgb_sk = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+    #    self.rgb_sk = cv2.cvtColor(rgb_sk, cv2.COLOR_RGB2BGR)
+    #    if self._flag_rgb_sk is 0:
+    #        print ' >rgb skel image received'
+    #        self._flag_rgb_sk = 1
 
     def depth_callback(self, msg):
         # self.depth_msg = msg
