@@ -39,7 +39,7 @@ if __name__ == '__main__':
 #    set_execution_status(True)
  #   print 'set execution'
     demand_task = get_services()
-    task= Task(action='skeleton_action', max_duration=rospy.Duration(6000), start_node_id=waypoint)
+    task= Task(action='record_skeletons', max_duration=rospy.Duration(6000), start_node_id=waypoint)
     task_utils.add_duration_argument(task, duration)
     task_utils.add_string_argument(task, waypoint)
 
