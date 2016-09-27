@@ -39,7 +39,7 @@ class SkeletonManager(object):
             print '  -create folder:',self.dir1
             os.makedirs(self.dir1)
 
-        # flags to make sure we recived every thing
+        # flags to make sure we received every thing
         self._flag_robot = 0
         self._flag_node = 0
         self._flag_rgb = 0
@@ -277,7 +277,7 @@ class SkeletonManager(object):
     def robot_callback(self, msg):
         self.robot_pose = msg
         if self._flag_robot == 0:
-            print ' >robot pose recived'
+            print ' >robot pose received'
             self._flag_robot = 1
 
     def ptu_callback(self, msg):
@@ -286,7 +286,7 @@ class SkeletonManager(object):
     def node_callback(self, msg):
         self.current_node = msg.data
         if self._flag_node == 0:
-            print ' >current node recived'
+            print ' >current node received'
             self._flag_node = 1
 
     def map_callback(self, msg):
@@ -299,7 +299,7 @@ class SkeletonManager(object):
         rgb = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
         self.rgb = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
         if self._flag_rgb is 0:
-            print ' >rgb image recived'
+            print ' >rgb image received'
             self._flag_rgb = 1
 
     def rgb_sk_callback(self, msg):
@@ -307,7 +307,7 @@ class SkeletonManager(object):
         rgb_sk = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
         self.rgb_sk = cv2.cvtColor(rgb_sk, cv2.COLOR_RGB2BGR)
         if self._flag_rgb_sk is 0:
-            print ' >rgb skel image recived'
+            print ' >rgb skel image received'
             self._flag_rgb_sk = 1
 
     def depth_callback(self, msg):
@@ -317,7 +317,7 @@ class SkeletonManager(object):
         cv2.normalize(depth_array, depth_array, 0, 1, cv2.NORM_MINMAX)
         self.xtion_img_d_rgb = depth_array*255
         if self._flag_depth is 0:
-            print ' >depth image recived'
+            print ' >depth image received'
             self._flag_depth = 1
 
 if __name__ == '__main__':

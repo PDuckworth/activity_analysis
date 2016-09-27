@@ -8,10 +8,11 @@ import rosbag
 import getpass, datetime
 import shutil
 
-from std_msgs.msg import String
+from std_msgs.msg import String, Header
+from geometry_msgs.msg import PoseStamped, Pose
 from std_srvs.srv import Empty, EmptyResponse
 from skeleton_tracker.msg import skeleton_message
-from skeleton_publisher_with_consent import SkeletonManager
+from skeleton_publisher_with_consent import SkeletonManagerConsent
 from record_skeletons_action.msg import skeletonAction, skeletonActionResult
 from consent_tsc.msg import ManageConsentAction, ConsentResult, ManageConsentGoal
 
@@ -21,7 +22,7 @@ from mary_tts.msg import maryttsAction, maryttsGoal
 from mongodb_store.message_store import MessageStoreProxy
 
 class skeleton_server(object):
-    def __init__(self, name="record_skeletons"):
+    def __init__(self, name="record_skeletons", num_of_frames=1000):
         """Action Server to observe a location for a duration of time.
            Record humans being detected
            If > a number of frames, request consent to save images.
@@ -33,6 +34,7 @@ class skeleton_server(object):
                                                     execute_cb=self.execute_cb, auto_start=False)
         self._as.start()
         self.load_config()
+        self.sk_publisher = SkeletonManagerConsent()
 
         # PTU state - based upon current_node callback
         self.ptu_action_client = actionlib.SimpleActionClient('/SetPTUState', PtuGotoAction)
@@ -41,9 +43,11 @@ class skeleton_server(object):
         # mongo store
         self.msg_store = MessageStoreProxy(database='message_store', collection='consent_images')
         
+        self.number_of_frames_before_consent_needed = num_of_frames
         # gazing action server
-        self.gaze_client()
-
+        #self.gaze_client()
+        self.publish_consent_pose = rospy.Publisher('skeleton_data/consent_pose', PoseStamped, queue_size = 10, latch=True)
+                
         # topo nav move
         # self.nav_client()
 
@@ -53,33 +57,37 @@ class skeleton_server(object):
 
 
     def execute_cb(self, goal):
+        print "send `start recording` page..."
         self.signal_start_of_recording()
+        self.sk_publisher.reinisialise()
+        self.sk_publisher.max_num_frames =  self.number_of_frames_before_consent_needed
+
         duration = goal.duration
         start = rospy.Time.now()
         end = rospy.Time.now()
-        print "GOAL:", goal, "\n"
+        consent_msg = "nothing"
+        print "GOAL:", goal
 
         self.set_ptu_state(goal.waypoint)
         consented_uuid = ""
         request_consent = 0
-        self.sk_publisher = SkeletonManager()
-
+        
         while (end - start).secs < duration.secs and request_consent == 0:
             if self._as.is_preempt_requested():
                  break
 
-            for uuid in self.sk_publisher.accumulate_data.keys():
-                # print ">>", len(self.sk_publisher.accumulate_data[uuid]), uuid
+            for cnt, (uuid, incr_msgs) in enumerate(self.sk_publisher.accumulate_data.items()):
+                #print ">>", len(self.sk_publisher.accumulate_data[uuid]), uuid
 
                 #publish the location of a person as a gaze request
-                if self.inc_sk.joints[0].name == 'head':
-                    head = Header(frame_id='head_xtion_depth_optical_frame')
-                    look_at_pose = PoseStamped(header = head, pose=self.inc_sk.joints[0].pose)
-                    self.publish_consent_pose.publish(look_at_pose)
-                #self.gazeClient.send_goal(self.gazegoal)
+                if cnt == 0 and len(incr_msgs) > 0:
+                    if incr_msgs[-1].joints[0].name == 'head':
+                        head = Header(frame_id='head_xtion_depth_optical_frame')
+                        look_at_pose = PoseStamped(header = head, pose=incr_msgs[-1].joints[0].pose)
+                        self.publish_consent_pose.publish(look_at_pose)
+                #        #self.gazeClient.send_goal(self.gazegoal)
 
-
-                if len(self.sk_publisher.accumulate_data[uuid]) >= 90:
+                if len(incr_msgs) >= self.number_of_frames_before_consent_needed:
                     request_consent = 1
                     consented_uuid = uuid
                     self.sk_publisher.requested_consent_flag = 1  # stops the publisher storing data
@@ -97,7 +105,7 @@ class skeleton_server(object):
             end = rospy.Time.now()
 
         # after the action reset ptu and stop publisher
-        print "exited loop"
+        print "exited loop - %s" %consent_msg
         self.reset_ptu()
         
         # if no skeleton was recorded for the threshold
@@ -112,6 +120,8 @@ class skeleton_server(object):
 
         if consent_msg is "everything":
 	        self.sk_publisher.consent_given_dump(consented_uuid)
+
+        self.sk_publisher.reset_data()
         print "finished action\n"
 
 
@@ -265,5 +275,7 @@ class skeleton_server(object):
 if __name__ == "__main__":
     rospy.init_node('skeleton_action_server')
 
-    skeleton_server()
+    num_of_frames = 600
+    skeleton_server("record_skeletons", num_of_frames)
     rospy.spin()
+    
