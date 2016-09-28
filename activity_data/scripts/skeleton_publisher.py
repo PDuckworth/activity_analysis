@@ -89,15 +89,16 @@ class SkeletonManager(object):
 
         st = self.accumulate_data[uuid][0].time
         en = self.accumulate_data[uuid][-1].time
+        vis=True
         if vis:
             print ">>>"
             print "storing: ", uuid, type(uuid)
             print "date: ", self.date, type(self.date)
             print "number of detectons: ", len(self.accumulate_data[uuid]), type(len(self.accumulate_data[uuid]))
-            print "map info: ", self.map_info, type(self.map_info)        
+            print "map info: ", self.map_info, type(self.map_info)
             print "current node: ", self.current_node, type(self.current_node)
             print "start/end rostime:", st, type(st), en, type(en)
-                
+
         msg = skeleton_complete(uuid = uuid, date = self.date, \
                                 time = self.sk_mapping[uuid]['time'], \
                                 skeleton_data = self.accumulate_data[uuid], \
@@ -132,8 +133,8 @@ class SkeletonManager(object):
 
         if self.sk_mapping[msg.uuid]["state"] is 'Tracking' and self.sk_mapping[msg.uuid]["frame"] is 1:
 
-            self.sk_mapping[msg.uuid]['time'] = str(datetime.datetime.now().time()).split('.')[0]+'_'
-            t = self.sk_mapping[msg.uuid]['time']
+            self.sk_mapping[msg.uuid]['time'] = str(datetime.datetime.now().time()).split('.')[0]
+            t = self.sk_mapping[msg.uuid]['time']+'_'
             print '  -new skeleton detected with id:', msg.uuid
             new_dir = self.dir1+self.date+'_'+t+msg.uuid #+'_'+waypoint
             # print "new", new_dir
@@ -151,7 +152,7 @@ class SkeletonManager(object):
                 # self.bag_file = rosbag.Bag(new_dir+'/detection.bag', 'w')
 
 
-        t = self.sk_mapping[self.inc_sk.uuid]['time']
+        t = self.sk_mapping[self.inc_sk.uuid]['time']+'_'
         new_dir = self.dir1+self.date+'_'+t+self.inc_sk.uuid #+'_'+waypoint
         if os.path.exists(new_dir):
             # setup saving dir and frame
@@ -333,6 +334,6 @@ if __name__ == '__main__':
 
     record_rgb = rospy.get_param("~record_rgb", True)
     print "recording RGB images: %s" % record_rgb
-    
+
     sk_manager = SkeletonManager(record_rgb)
     rospy.spin()
