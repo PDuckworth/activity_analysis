@@ -295,6 +295,7 @@ def get_event(recording, path, soma_objects, config_data, reduce_frame_rate=2, m
 def get_soma_objects(region=None):
     #todo: read from soma2 mongo store.
 
+    """TSC OBJECTS"""
     objects = {}
     objects['Kitchen'] = {}
     objects['Reception'] = {}
@@ -330,6 +331,7 @@ def get_soma_objects(region=None):
     objects['Support'] = {
     #'Printer_1 2':  (-8.957, -17.511, 1.1),
     }
+
     return objects
 
 

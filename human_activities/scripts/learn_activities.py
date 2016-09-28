@@ -1,15 +1,13 @@
 #!/usr/bin/env python
-
 """Analyse Episode store using Machine Learning techniques (offline)"""
-
 __author__ = "Paul Duckworth"
 __copyright__ = "Copyright 2015, University of Leeds"
 
-#import rospy
 import os, sys, time
 import yaml
 import roslib
 import getpass
+import rospy
 import numpy as np
 import cPickle as pickle
 import multiprocessing as mp
@@ -18,11 +16,29 @@ import human_activities.encode_qsrs as eq
 import human_activities.histograms as h
 import human_activities.tfidf as tfidf
 
+from mongodb_store.message_store import MessageStoreProxy
+from skeleton_tracker.msg import skeleton_message, skeleton_complete
+
 class Offline_ActivityLearning(object):
 
     def __init__(self, rerun_all=0, reduce_frame_rate=2, joints_mean_window=5, qsr_mean_window=3):
-        print "initialise activity learning action"
+        print "initialise activity learning action class"
         self.path = '/home/' + getpass.getuser() + '/SkeletonDataset/'
+
+        self._message_store = rospy.get_param("~message_store", "people_skeleton")
+        self._database = rospy.get_param("~database", "message_store")
+        self._store_client = MessageStoreProxy(collection=self._message_store, database=self._database)
+
+        self.query = {} #"number_of_detections":100}
+
+        query = {"date":"2016-09-28"}
+        ret =  self._store_client.query(skeleton_complete._type, query)
+
+
+        print len(ret)
+        print ret[0].uuid, ret[0].time, ret[0].date
+        sys.exit(1)
+        """NEED A WAY OF QUERYING and UPLOADING TO MONGO"""
 
         """FILTERS all effect each other. Frame rate reduction applied first. Filter to qsrs last."""
         self.reduce_frame_rate = reduce_frame_rate
@@ -33,12 +49,12 @@ class Offline_ActivityLearning(object):
         self.load_config()
 
         if rerun_all:
+            """Dont re-process a skeleton if its already in QSR world format."""
             for f in os.listdir(self.processed_path):
                 # print f, os.path.join(self.processed_path, f)
                 os.remove(os.path.join(self.processed_path, f))
             for f in os.listdir(self.events_path):
                 os.remove(os.path.join(self.events_path, f))
-
 
     def load_config(self):
         """load the config file from the data recordings (from tsc)"""
@@ -67,20 +83,32 @@ class Offline_ActivityLearning(object):
         self.soma_objects = ce.get_soma_objects()
         print self.soma_objects.keys()
 
+
+
+
     def get_events(self):
         """multiprocessing?"""
         print "\nEvents"
-        path = os.path.join(self.path, 'SafeZone')
+
+        """NEED TO GET SKELETON MSGS FROM MONGO"""
+    def _retrieve_logs(self):
+        query = {"soma_roi_id":str(self.roi)}
+        logs = self._client.message_store.spatial_qsr_models.find(query)
+
+        path = os.path.join(self.path, 'consent')
+
         for recording in os.listdir(path):
             if os.path.isdir(os.path.join(path, recording)) and not os.path.isfile(os.path.join(self.processed_path, recording+".p")):
-                waypoint = recording.split('_')[-1]
-                region = self.soma_roi_config[waypoint]
+                print recording
+                # waypoint = recording.split('_')[-1]
+                # region = self.soma_roi_config[waypoint]
+                region = "Kitchen"
                 # if waypoint == "KitchenCounter1":
                 # print "geting skeleton data: ", recording, waypoint, region
                 # print "s", self.soma_objects[region]
                 # print "p", self.config[waypoint]
                 # print ">>", recording, waypoint, region
-                ce.get_event(recording, path, self.soma_objects[region], self.config[waypoint], self.reduce_frame_rate, self.joints_mean_window)
+                ce.get_event(recording, path, self.soma_objects[region], self.config[region], self.reduce_frame_rate, self.joints_mean_window)
             else:
                 print "already processed: %s" % recording
 
@@ -168,6 +196,7 @@ if __name__ == "__main__":
 
     o = Offline_ActivityLearning(reduce_frame_rate=3, rerun_all=rerun)
     o.get_soma_objects()
+
     o.get_events()
     o.encode_qsrs(parallel)
     o.make_temp_histograms_sequentially()

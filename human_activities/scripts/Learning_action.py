@@ -9,7 +9,6 @@ from human_activities.msg import LearningAction, LearningResult
 class Learning_server(object):
     def __init__(self, name= "LearningHumanActivities"):
 
-
         # Start server
         rospy.loginfo("Learning Human ACtivites action server")
         self._action_name = name
