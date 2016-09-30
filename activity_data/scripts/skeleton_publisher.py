@@ -13,8 +13,10 @@ from std_msgs.msg import String
 from geometry_msgs.msg import Pose, Point, Quaternion
 import topological_navigation.msg
 from strands_navigation_msgs.msg import TopologicalMap
-from skeleton_tracker.msg import skeleton_tracker_state, skeleton_message, robot_message, skeleton_complete
+from skeleton_tracker.msg import skeleton_tracker_state, skeleton_message, robot_message
+from activity_data.msg import  skeleton_complete
 from mongodb_store.message_store import MessageStoreProxy
+from tf.transformations import euler_from_quaternion
 
 class SkeletonManager(object):
     """To deal with Skeleton messages once they are published as incremental msgs by OpenNI2."""
@@ -82,6 +84,37 @@ class SkeletonManager(object):
             rospy.loginfo("Connecting to mongodb...%s" % self._message_store)
             self._store_client = MessageStoreProxy(collection=self._message_store, database=self._database)
 
+    def convert_to_world_frame(pose, robot_msg):
+        """Convert a single camera frame coordinate into a map frame coordinate"""
+        fx = 525.0
+        fy = 525.0
+        cx = 319.5
+        cy = 239.5
+
+        y,z,x = pose.x, pose.y, pose.z
+
+        (xr, yr, zr) = robot_msg.robot_pose.position
+        (ax, ay, az, aw) = robot_msg.robot_pose.orientation
+        roll, pr, yawr = euler_from_quaternion([ax, ay, az, aw])
+
+        yawr += robot_msg.PTU_pan
+        pr += robot_msg.PTU_tilt
+
+        # transformation from camera to map
+        rot_y = np.matrix([[np.cos(pr), 0, np.sin(pr)], [0, 1, 0], [-np.sin(pr), 0, np.cos(pr)]])
+        rot_z = np.matrix([[np.cos(yawr), -np.sin(yawr), 0], [np.sin(yawr), np.cos(yawr), 0], [0, 0, 1]])
+        rot = rot_z*rot_y
+
+        pos_r = np.matrix([[xr], [yr], [zr+1.66]]) # robot's position in map frame
+        pos_p = np.matrix([[x], [-y], [-z]]) # person's position in camera frame
+
+        map_pos = rot*pos_p+pos_r # person's position in map frame
+        x_mf = map_pos[0,0]
+        y_mf = map_pos[1,0]
+        z_mf = map_pos[2,0]
+
+        print ">>" , x_mf, y_mf, z_mf
+        return Point(x_mf, y_mf, z_mf)
 
     def _publish_complete_data(self, subj, uuid, vis=False):
         """when user goes "out of scene" publish their accumulated data"""
@@ -89,6 +122,11 @@ class SkeletonManager(object):
 
         st = self.accumulate_data[uuid][0].time
         en = self.accumulate_data[uuid][-1].time
+
+        first_pose = self.accumulate_data[uuid][0].joints[0].pose.positon
+        robot_msg =  self.accumulate_robot[uuid][0]
+        first_map_point = convert_to_world_frame(first_pose, robot_msg)
+
         vis=True
         if vis:
             print ">>>"
@@ -104,7 +142,8 @@ class SkeletonManager(object):
                                 skeleton_data = self.accumulate_data[uuid], \
                                 number_of_detections = len(self.accumulate_data[uuid]), \
                                 map_name = self.map_info, current_topo_node = self.current_node, \
-                                start_time = st, end_time = en, robot_data = self.accumulate_robot[uuid])
+                                start_time = st, end_time = en, robot_data = self.accumulate_robot[uuid], \
+                                human_map_point = first_map_point)
 
         self.publish_comp.publish(msg)
         rospy.loginfo("User #%s: published %s msgs as %s" % (subj, len(self.accumulate_data[uuid]), msg.uuid))

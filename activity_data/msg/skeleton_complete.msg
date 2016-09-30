@@ -1,0 +1,12 @@
+Header header
+string uuid
+time start_time
+time end_time
+string date
+string time
+skeleton_tracker/skeleton_message[] skeleton_data
+skeleton_tracker/robot_message[] robot_data
+int32 number_of_detections
+string map_name
+string current_topo_node
+Point human_map_point
