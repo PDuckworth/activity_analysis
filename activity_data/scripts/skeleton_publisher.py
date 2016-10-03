@@ -118,7 +118,7 @@ class SkeletonManager(object):
         y_mf = map_pos[1,0]
         z_mf = map_pos[2,0]
 
-        print ">>" , x_mf, y_mf, z_mf
+        # print ">>" , x_mf, y_mf, z_mf
         return Point(x_mf, y_mf, z_mf)
 
     def _publish_complete_data(self, subj, uuid, vis=False):
@@ -138,11 +138,11 @@ class SkeletonManager(object):
         if vis:
             print ">>>"
             print "storing: ", uuid, type(uuid)
-            print "date: ", self.date, type(self.date)
-            print "number of detectons: ", len(self.accumulate_data[uuid]), type(len(self.accumulate_data[uuid]))
-            print "map info: ", self.map_info, type(self.map_info)
+            print "date: ", self.date #, type(self.date)
+            print "number of detectons: ", len(self.accumulate_data[uuid]) #, type(len(self.accumulate_data[uuid]))
+            print "map info: %s. (x,y) Position: (%s,%s)" % (self.map_info, first_map_point.x, first_map_point.y)  #, type(self.map_info)
             print "current node: ", self.current_node, type(self.current_node)
-            print "start/end rostime:", st, type(st), en, type(en)
+            print "start/end rostime:", st, en #type(st), en, type(en)
 
         msg = SkeletonComplete(uuid = uuid, date = self.date, \
                                 time = self.sk_mapping[uuid]['time'], \
