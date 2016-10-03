@@ -13,8 +13,8 @@ from std_msgs.msg import String
 from geometry_msgs.msg import Pose, Point, Quaternion
 import topological_navigation.msg
 from strands_navigation_msgs.msg import TopologicalMap
-from skeleton_tracker.msg import skeleton_tracker_state, skeleton_message, robot_message
-from activity_data.msg import  skeleton_complete
+from skeleton_tracker.msg import skeleton_tracker_state, skeleton_message, robot_message, SkeletonComplete
+#from activity_data.msg import  SkeletonComplete
 from mongodb_store.message_store import MessageStoreProxy
 from tf.transformations import euler_from_quaternion
 
@@ -70,7 +70,7 @@ class SkeletonManager(object):
 
         # publishers:
         # self.publish_incr = rospy.Publisher('skeleton_data/incremental', skeleton_message, queue_size = 10)
-        self.publish_comp = rospy.Publisher('skeleton_data/complete', skeleton_complete, queue_size = 10)
+        self.publish_comp = rospy.Publisher('skeleton_data/complete', SkeletonComplete, queue_size = 10)
         self.rate = rospy.Rate(15.0)
 
         # only publish the skeleton data when the person is far enough away (distance threshold)
@@ -84,7 +84,7 @@ class SkeletonManager(object):
             rospy.loginfo("Connecting to mongodb...%s" % self._message_store)
             self._store_client = MessageStoreProxy(collection=self._message_store, database=self._database)
 
-    def convert_to_world_frame(pose, robot_msg):
+    def convert_to_world_frame(self, pose, robot_msg):
         """Convert a single camera frame coordinate into a map frame coordinate"""
         fx = 525.0
         fy = 525.0
@@ -93,8 +93,13 @@ class SkeletonManager(object):
 
         y,z,x = pose.x, pose.y, pose.z
 
-        (xr, yr, zr) = robot_msg.robot_pose.position
-        (ax, ay, az, aw) = robot_msg.robot_pose.orientation
+        xr = robot_msg.robot_pose.position.x
+        yr = robot_msg.robot_pose.position.y
+        zr = robot_msg.robot_pose.position.z
+        ax = robot_msg.robot_pose.orientation.x
+        ay = robot_msg.robot_pose.orientation.y
+        az = robot_msg.robot_pose.orientation.z
+        aw = robot_msg.robot_pose.orientation.w
         roll, pr, yawr = euler_from_quaternion([ax, ay, az, aw])
 
         yawr += robot_msg.PTU_pan
@@ -122,10 +127,12 @@ class SkeletonManager(object):
 
         st = self.accumulate_data[uuid][0].time
         en = self.accumulate_data[uuid][-1].time
+        print ">>", self.accumulate_data[uuid][0].joints[0].pose
 
-        first_pose = self.accumulate_data[uuid][0].joints[0].pose.positon
+
+        first_pose = self.accumulate_data[uuid][0].joints[0].pose.position
         robot_msg =  self.accumulate_robot[uuid][0]
-        first_map_point = convert_to_world_frame(first_pose, robot_msg)
+        first_map_point = self.convert_to_world_frame(first_pose, robot_msg)
 
         vis=True
         if vis:
@@ -137,7 +144,7 @@ class SkeletonManager(object):
             print "current node: ", self.current_node, type(self.current_node)
             print "start/end rostime:", st, type(st), en, type(en)
 
-        msg = skeleton_complete(uuid = uuid, date = self.date, \
+        msg = SkeletonComplete(uuid = uuid, date = self.date, \
                                 time = self.sk_mapping[uuid]['time'], \
                                 skeleton_data = self.accumulate_data[uuid], \
                                 number_of_detections = len(self.accumulate_data[uuid]), \

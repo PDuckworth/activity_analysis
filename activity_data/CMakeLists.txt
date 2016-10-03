@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   message_generation
+  #skeleton_tracker
 )
 
 ## System dependencies are found with CMake's conventions
@@ -50,7 +51,7 @@ add_message_files(
    QSRlibMongo.msg
    QsrsToMongo.msg
    Graphlets.msg
-   skeleton_complete.msg
+   #SkeletonComplete.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -72,7 +73,7 @@ generate_messages(
    DEPENDENCIES
    std_msgs
    geometry_msgs
-   skeleton_tracker
+   #skeleton_tracker
 )
 
 ################################################
