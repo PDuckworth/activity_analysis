@@ -13,7 +13,7 @@ from std_msgs.msg import String
 from geometry_msgs.msg import Pose, Point, Quaternion
 import topological_navigation.msg
 from strands_navigation_msgs.msg import TopologicalMap
-from skeleton_tracker.msg import skeleton_tracker_state, skeleton_message, robot_message, skeleton_complete
+from skeleton_tracker.msg import skeleton_tracker_state, skeleton_message, robot_message
 from mongodb_store.message_store import MessageStoreProxy
 
 class SkeletonManagerConsent(object):
@@ -23,12 +23,12 @@ class SkeletonManagerConsent(object):
 
         self.reinisialise()
         self.reset_data()
-        
+
         # open cv stuff
         self.cv_bridge = CvBridge()
         self.camera = "head_xtion"
         self.max_num_frames = 1000
-        
+
         # listeners
         rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
         rospy.Subscriber('/'+self.camera+'/rgb/image_color', sensor_msgs.msg.Image, callback=self.rgb_callback, queue_size=10)
@@ -49,14 +49,14 @@ class SkeletonManagerConsent(object):
 
         # flag to stop listeners
         self.listen_to = 1
-		
+
         # flags to make sure we recived every thing
         self.requested_consent_flag = 0
         self._flag_robot = 0
         self._flag_rgb = 0
         #self._flag_rgb_sk = 0
         self._flag_depth = 0
-    
+
     def reset_data(self):
         self.accumulate_data = {}  # accumulates multiple skeleton msgs
         self.accumulate_robot = {} # accumulates multiple robot msgs
@@ -70,7 +70,7 @@ class SkeletonManagerConsent(object):
         self.ptu_pan = self.ptu_tilt = 0.0    # init pan tilt of the head xtion
         self.listen_to = 0
 
-        
+
     def incremental_callback(self, msg):
         """accumulate all data until consent is requested and accepted"""
         if self._flag_robot and self._flag_rgb and self._flag_depth and self.requested_consent_flag is 0:
@@ -108,11 +108,11 @@ class SkeletonManagerConsent(object):
     def _remove_stored_data(self, subj, uuid):
         """when a uuid is stopped being tracked - delete their held data"""
         del self.sk_mapping[uuid]
-        del self.accumulate_data[uuid] 
+        del self.accumulate_data[uuid]
         del self.accumulate_robot[uuid]
-        del self.accumulate_rgb_images[uuid] 
+        del self.accumulate_rgb_images[uuid]
         #del self.accumulate_rgb_sk_images[uuid]
-        del self.accumulate_depth_images[uuid] 
+        del self.accumulate_depth_images[uuid]
 
 
     def consent_given_dump(self, uuid):
@@ -121,10 +121,10 @@ class SkeletonManagerConsent(object):
         # print ">>", self.sk_mapping[uuid]
         # print len(self.sk_mapping[uuid]), len(self.accumulate_data[uuid]), len(self.accumulate_robot[uuid]), len(self.accumulate_rgb_images[uuid]), len(self.accumulate_rgb_sk_images[uuid]), len(self.accumulate_depth_images[uuid])
         print "dumping data for %s%s" % (self.sk_mapping[uuid]['time'], uuid)
-        
+
         """Loop over all the held data and save to disc"""
         for f, incr_msg in enumerate(self.accumulate_data[uuid]):
-            if str(datetime.datetime.now().date()) != self.date:  		    #This will only happen if the action is called over night. 
+            if str(datetime.datetime.now().date()) != self.date:  		    #This will only happen if the action is called over night.
                 print 'new day!'
                 self.date = str(datetime.datetime.now().date())
                 self.dir1 = '/home/' + getpass.getuser() + '/SkeletonDataset/no_consent/'+self.date+'/'
@@ -211,18 +211,18 @@ class SkeletonManagerConsent(object):
 
 
     def robot_callback(self, msg):
-        if self.listen_to == 1: 
+        if self.listen_to == 1:
             self.robot_pose = msg
             if self._flag_robot == 0:
                 print ' >robot pose received'
                 self._flag_robot = 1
 
     def ptu_callback(self, msg):
-        if self.listen_to == 1: 
+        if self.listen_to == 1:
             self.ptu_pan, self.ptu_tilt = msg.position
 
     def node_callback(self, msg):
-        if self.listen_to == 1: 
+        if self.listen_to == 1:
             self.current_node = msg.data
             if self._flag_node == 0:
                 print ' >current node received'
@@ -234,7 +234,7 @@ class SkeletonManagerConsent(object):
         self.topo_listerner.unregister()
 
     def rgb_callback(self, msg):
-        if self.listen_to == 1: 
+        if self.listen_to == 1:
             self.rgb_msg = msg   # to serve to the webserver - for consent
             rgb = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
             self.rgb = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
@@ -243,7 +243,7 @@ class SkeletonManagerConsent(object):
                 self._flag_rgb = 1
 
     #def rgb_sk_callback(self, msg):
-    #    if self.listen_to == 1: 
+    #    if self.listen_to == 1:
     #        self.rgb_sk_msg = msg   # to serve to the webserver - for consent
     #        rgb_sk = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
     #        self.rgb_sk = cv2.cvtColor(rgb_sk, cv2.COLOR_RGB2BGR)
@@ -252,7 +252,7 @@ class SkeletonManagerConsent(object):
     #            self._flag_rgb_sk = 1
 
     def depth_callback(self, msg):
-        if self.listen_to == 1:    
+        if self.listen_to == 1:
             # self.depth_msg = msg
             depth_image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
             depth_array = np.array(depth_image, dtype=np.float32)
@@ -267,6 +267,6 @@ if __name__ == '__main__':
 
     record_rgb = rospy.get_param("~record_rgb", True)
     print "recording RGB images: %s" % record_rgb
-    
+
     sk_manager = SkeletonManager(record_rgb)
     rospy.spin()

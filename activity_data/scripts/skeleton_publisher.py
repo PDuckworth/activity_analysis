@@ -127,7 +127,7 @@ class SkeletonManager(object):
 
         st = self.accumulate_data[uuid][0].time
         en = self.accumulate_data[uuid][-1].time
-        print ">>", self.accumulate_data[uuid][0].joints[0].pose
+        # print ">>", self.accumulate_data[uuid][0].joints[0].pose
 
 
         first_pose = self.accumulate_data[uuid][0].joints[0].pose.position

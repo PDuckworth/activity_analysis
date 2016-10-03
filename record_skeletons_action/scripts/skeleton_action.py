@@ -42,12 +42,12 @@ class skeleton_server(object):
 
         # mongo store
         self.msg_store = MessageStoreProxy(database='message_store', collection='consent_images')
-        
+
         self.number_of_frames_before_consent_needed = num_of_frames
         # gazing action server
         #self.gaze_client()
         self.publish_consent_pose = rospy.Publisher('skeleton_data/consent_pose', PoseStamped, queue_size = 10, latch=True)
-                
+
         # topo nav move
         # self.nav_client()
 
@@ -71,7 +71,7 @@ class skeleton_server(object):
         self.set_ptu_state(goal.waypoint)
         consented_uuid = ""
         request_consent = 0
-        
+
         while (end - start).secs < duration.secs and request_consent == 0:
             if self._as.is_preempt_requested():
                  break
@@ -96,7 +96,7 @@ class skeleton_server(object):
                     print "breaking loop for: %s" % consented_uuid
                     self.reset_ptu()
                     self.speaker.send_goal(maryttsGoal(text=self.speech))
-                    
+
                     new_duration = duration.secs - (end - start).secs
                     consent_msg = self.consent_client(new_duration)
                     print "consent returned: %s: %s" % (consent_msg, consented_uuid)
@@ -107,11 +107,11 @@ class skeleton_server(object):
         # after the action reset ptu and stop publisher
         print "exited loop - %s" %consent_msg
         self.reset_ptu()
-        
+
         # if no skeleton was recorded for the threshold
         if request_consent is 0:
             self.return_to_main_webpage()
-            
+
         if self._as.is_preempt_requested():
             print "The action is being preempted, cancelling everything. \n"
             self.return_to_main_webpage()
@@ -167,23 +167,23 @@ class skeleton_server(object):
 
 
     def load_images_to_view_on_mongo(self, uuid):
-    
+
         rgb = self.sk_publisher.rgb_msg
         #rgb_sk = self.sk_publisher.rgb_sk_msg
         # depth = self.sk_publisher.depth_msg  # not created anymore
-        
-        # Skeleton on rgb background       
+
+        # Skeleton on rgb background
         #query = {"_meta.image_type": "rgb_sk_image"}
         #self.msg_store.update(message=rgb_sk, meta={'image_type':"rgb_sk_image"}, message_query=query, upsert=True)
-        
+
         query = {"_meta.image_type": "rgb_image"}
         self.msg_store.update(message=rgb, meta={'image_type':"rgb_image"}, message_query=query, upsert=True)
-        
+
         # Skeleton on depth background
         # depth = self.sk_publisher.accumulate_rgb_images[uuid][-1]
         # query = {"_meta.image_type": "depth_image"}
         # depth_img_to_mongo = self.msg_store.update(message=self.depth_msg, meta={'image_type':"depth_image"}, message_query=query, upsert=True)
-                    
+
 
 
     def signal_start_of_recording(self):
@@ -277,4 +277,3 @@ if __name__ == "__main__":
     num_of_frames = 600
     skeleton_server("record_skeletons", num_of_frames)
     rospy.spin()
-    
