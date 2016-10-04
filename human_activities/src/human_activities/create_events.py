@@ -362,7 +362,7 @@ if __name__ == "__main__":
 
     ##DEFAULTS:
     # path = '/home/' + getpass.getuser() + '/Dropbox/Programming/Luice/Datasets/Lucie/'
-    path = '/home/' + getpass.getuser() + '/SkeletonDataset/SafeZone'
+    path = '/home/' + getpass.getuser() + '/SkeletonDataset'
     mean_window = 5
 
     for cnt, f in enumerate(path):

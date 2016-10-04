@@ -9,14 +9,9 @@ import multiprocessing as mp
 import utils as utils
 
 
-def create_temp_histograms(path):
+def create_temp_histograms(qsr_path, accu_path):
     """sequentially create a temporary histogram whilst
     generating the codebook from observations"""
-
-    qsr_path = os.path.join(path, 'Learning', 'QSR_Worlds')
-    acc_path = os.path.join(path, 'Learning', 'accumulate_data')
-    if not os.path.isdir(acc_path):
-        os.system('mkdir -p ' + acc_path)
 
     global_codebook = np.array([])
     all_graphlets = np.array([])
@@ -53,11 +48,11 @@ def create_temp_histograms(path):
             utils.save_event(e, "Learning/Histograms")
 
     print "Code book shape:", global_codebook.shape
-    f = open(os.path.join(acc_path, "code_book_all.p"), "w")
+    f = open(os.path.join(accu_path, "code_book_all.p"), "w")
     pickle.dump(global_codebook, f)
     f.close()
 
-    f = open(os.path.join(acc_path, "graphlets_all.p"), "w")
+    f = open(os.path.join(accu_path, "graphlets_all.p"), "w")
     pickle.dump(all_graphlets, f)
     f.close()
 
@@ -77,16 +72,13 @@ def worker_padd(chunk):
     return (e.uuid, e.global_histogram[0])
 
 
-def recreate_data_with_high_instance_graphlets(path, feature_space=None, low_instance=1):
+def recreate_data_with_high_instance_graphlets(accu_path, feature_space=None, low_instance=1):
     """This invloves a lot of loading and saving.
     But essentially, it takes the feature space created over all events, and removes any
     feature that is not witnessed a minimum number of times (low_instance param).
     It then loads the code_book, and graphlets book, to remove the features from there also
     (resaving with a different name)
     """
-
-    # # Feature Space
-    accu_path = os.path.join(path, 'Learning', 'accumulate_data')
 
     ## Number of rows with non zero element :
     keep_rows = np.where((feature_space != 0).sum(axis=0) > low_instance)[0]

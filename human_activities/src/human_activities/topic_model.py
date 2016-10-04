@@ -65,19 +65,18 @@ def learn_topic_model(X, vocab, n_topics, n_iters, graphlets, dirichlet_params, 
     topic_word = model.topic_word_  # model.components_ also works
     n_top_words = 30
 
-    data = {'topic_term_dists': model.topic_word_,
-            'doc_topic_dists': model.doc_topic_,
-            'doc_lengths': len(graphlets.keys()),
-            'vocab': graphlets.keys(),
-            'term_frequency': X}
-
     feature_freq = (X != 0).sum(axis=0)
     doc_lengths = (X != 0).sum(axis=1)
 
-    print "phi: %s. theta: %s. nd: %s. vocab: %s. Mw: %s" \
-        %( model.topic_word_.shape, model.doc_topic_.shape, doc_lengths.shape, len(graphlets.keys()), len(feature_freq))
-
     try:
+        print "phi: %s. theta: %s. nd: %s. vocab: %s. Mw: %s" \
+        %( model.topic_word_.shape, model.doc_topic_.shape, doc_lengths.shape, len(graphlets.keys()), len(feature_freq))
+        data = {'topic_term_dists': model.topic_word_,
+                'doc_topic_dists': model.doc_topic_,
+                'doc_lengths': len(graphlets.keys()),
+                'vocab': graphlets.keys(),
+                'term_frequency': X}
+
         import pyLDAvis
         vis_data = pyLDAvis.prepare(model.topic_word_, model.doc_topic_, doc_lengths, graphlets.keys(), feature_freq)
         # vis_data = pp.prepare(model.topic_word_, model.doc_topic_, doc_lengths, graphlets.keys(), feature_freq)
@@ -85,37 +84,33 @@ def learn_topic_model(X, vocab, n_topics, n_iters, graphlets, dirichlet_params, 
         pyLDAvis.save_html(vis_data, html_file)
         print "PyLDAVis ran. output: %s" % html_file
 
+        """investigate the objects used in the topics"""
+        print("\ntype(topic_word): {}".format(type(topic_word)))
+        print("shape: {}".format(topic_word.shape))
+        topics = {}
+        for i, topic_dist in enumerate(topic_word):
+            objs = []
+            topic_words = np.array(vocab)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
+            #print('Topic {}: {}'.format(i, ' '.join( [repr(i) for i in topic_words] )))
+            for j in [graphlets[k] for k in topic_words]:
+                objs.extend(object_nodes(j)[0])
+            topics[i] = objs
+            if dbg:
+                print('Topic {}: {}'.format(i, list(set(objs))))
+
     except ImportError:
         print "No module pyLDAvis. Cannot visualise topic model"
 
-    """INVESTIGATE TOPICS"""
-    print("\ntype(topic_word): {}".format(type(topic_word)))
-    print("shape: {}".format(topic_word.shape))
-    topics = {}
-    for i, topic_dist in enumerate(topic_word):
-        objs = []
-        topic_words = np.array(vocab)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
-        #print('Topic {}: {}'.format(i, ' '.join( [repr(i) for i in topic_words] )))
-        for j in [graphlets[k] for k in topic_words]:
-            objs.extend(object_nodes(j)[0])
-        topics[i] = objs
-        if dbg:
-            print('Topic {}: {}'.format(i, list(set(objs))))
-
-    """INVESTIGATE DOCUMENTS"""
+    """investigate the highly probably topics in each document"""
     doc_topic = model.doc_topic_
+    # #Each document's most probable topic - don't have the UUIDs, so dont use this.
+    # pred_labels = []
+    # for n in range(doc_topic.shape[0]):
+    #     if max(doc_topic[n]) > class_thresh:
+    #         topic_most_pr = doc_topic[n].argmax()
+    #         pred_labels.append(topic_most_pr)
 
-    # #Each document's most probable topic
-    pred_labels = []
-    for n in range(doc_topic.shape[0]):
-        #print [p for p in doc_topic[n] if p >= 0.0]  # each document probabilities to each topic
-
-        if max(doc_topic[n]) > class_thresh:
-            topic_most_pr = doc_topic[n].argmax()
-            pred_labels.append(topic_most_pr)
-
-        #if dbg: print("doc: {} topic: {}".format(n, topic_most_pr))
-    return doc_topic, topic_word, pred_labels
+    return doc_topic, topic_word #, pred_labels
 
 
 def investigate_features(dictionary_codebook):
@@ -147,24 +142,43 @@ def get_dic_codebook(code_book, graphlets, create_graphlet_images=False):
         create_codebook_images(dictionary_codebook, image_path, dbg)
     return dictionary_codebook
 
+def run_topic_model(accu_path, n_iters, n_topics, create_images, dirichlet_params, class_thresh=0):
 
-def run_topic_model(in_path, n_iters, n_topics, dbg, create_image, dirichlet_params, class_thresh=0):
-
-    code_book, graphlets, data = utils.load_all_learning_files(in_path)
-    dictionary_codebook = get_dic_codebook(code_book, graphlets, create_images)
+    code_book, graphlets, data = utils.load_all_learning_files(accu_path)
+    dictionary_codebook = {}
+    try:
+        import pyLDAvis
+        dictionary_codebook = get_dic_codebook(code_book, graphlets, create_images)
+    except ImportError:
+        print "No module pyLDAvis. Cannot visualise topic model"
 
     print "sum of all data:", data.shape, data.sum()
     vocab = [ "{:20.0f}".format(hash).lstrip() for hash in list(code_book) ]
-    print "vocab:", len(vocab)
+    # print "vocab:", len(vocab)
 
-    doc_topic, topic_word, pred_labels  = learn_topic_model(data, vocab, n_topics, n_iters, dictionary_codebook, dirichlet_params, class_thresh, dbg)
+    doc_topic, topic_word  = learn_topic_model(data, vocab, n_topics, n_iters, dictionary_codebook, dirichlet_params, class_thresh)
+    print " per document topic proportions: ", doc_topic.shape
+    print " per topic word distributions: ", topic_word.shape
 
-    return (doc_topic, topic_word, code_book, pred_labels), dictionary_codebook
+    return doc_topic, topic_word
+
+def dump_lda_output(path, doc_topic, topic_word):
+    f = open(os.path.join(path, "doc_topic.p"), "w")
+    pickle.dump(doc_topic, f)
+    f.close()
+
+    f = open(os.path.join(path, "topic_word.p"), "w")
+    pickle.dump(topic_word, f)
+    f.close()
+
+    # f = open(os.path.join(path, "pred_labels.p"), "w")
+    # pickle.dump(pred_labels, f)
+    # f.close()
 
 
 if __name__ == "__main__":
 
-    n_iters = 200
+    n_iters = 1000
     all_topics = xrange(11,12)
     dbg = False
     create_images = False
@@ -178,8 +192,8 @@ if __name__ == "__main__":
 
     for n_topics in all_topics:
         print "\ntopics = %s. " % n_topics
-        segmented_out, dictionary_codebook = run_topic_model(path, n_iters, n_topics, dbg, create_images, dirichlet_params, class_threshold)
-        (doc_topic, topic_word, code_book, pred_labels) = segmented_out
+        doc_topic, topic_word = run_topic_model(path, n_iters, n_topics,  create_images, dirichlet_params, class_threshold)
+
         # results[n_topics] = print_results(true_labels, pred_labels, n_topics)
 
     # print "\nRESULTS:"

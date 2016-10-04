@@ -7,6 +7,7 @@ import numpy as np
 import multiprocessing as mp
 
 import utils as utils
+import create_events as ce
 from qsrlib.qsrlib import QSRlib, QSRlib_Request_Message
 from qsrlib_io.world_qsr_trace import World_QSR_Trace
 from qsrlib_utils.utils import merge_world_qsr_traces
@@ -53,7 +54,7 @@ def worker_qsrs(chunk):
     all_object_types = joint_types.copy()
 
     add_objects = []
-    for region, objects in get_soma_objects().items():
+    for region, objects in ce.get_soma_objects().items():
         for o in objects:
             add_objects.append(o)
             try:
@@ -65,7 +66,7 @@ def worker_qsrs(chunk):
     dynamic_args["qstag"]["object_types"] = all_object_types
 
     """1. CREATE QSRs FOR Key joints & Object """
-    print "QTC,QDC: ",
+    print " QTC,QDC: "
     qsrlib = QSRlib()
     # print ">>", e.map_world.get_sorted_timestamps()
 

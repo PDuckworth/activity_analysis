@@ -21,7 +21,7 @@ import human_activities.create_events as ce
 import human_activities.encode_qsrs as eq
 import human_activities.histograms as h
 import human_activities.tfidf as tfidf
-import topic_models as tm
+import human_activities.topic_model as tm
 
 class Offline_ActivityLearning(object):
 
@@ -42,17 +42,26 @@ class Offline_ActivityLearning(object):
         self.reduce_frame_rate = reduce_frame_rate
         self.joints_mean_window = joints_mean_window
         self.qsr_mean_window = qsr_mean_window
+
+        """Define all filepaths here"""
         self.events_path = os.path.join(self.path, 'Learning', 'Events')
-        self.processed_path = os.path.join(self.path, 'Learning', 'QSR_Worlds')
+        self.qsr_path = os.path.join(self.path, 'Learning', 'QSR_Worlds')
         self.hist_path = os.path.join(self.path, 'Learning', 'Histograms')
-        self.accu_path = os.path.join(self.path, 'Learning', 'accumulate_data')
+        self.accu_path = os.path.join(self.path, 'Learning', 'accumulate_data', self.date)
+        if not os.path.isdir(self.accu_path): os.system('mkdir -p ' + self.accu_path)
+
+        self.lsa_path = os.path.join(self.accu_path, "LSA")
+        if not os.path.exists(self.lsa_path): os.makedirs(self.lsa_path)
+        self.lda_path = os.path.join(self.accu_path, "LDA")
+        if not os.path.exists(self.lda_path): os.makedirs(self.lda_path)
+
         #self.load_config()
 
+        """If you want to rerun all the learning each time (not necessary)"""
         if rerun_all:
-            """Dont re-process a skeleton if its already in QSR world format."""
-            for f in os.listdir(self.processed_path):
-                # print f, os.path.join(self.processed_path, f)
-                os.remove(os.path.join(self.processed_path, f))
+            """Removes the skeleton pose sequence event and encoded qsr world."""
+            for f in os.listdir(self.qsr_path):
+                os.remove(os.path.join(self.qsr_path, f))
             for f in os.listdir(self.events_path):
                 os.remove(os.path.join(self.events_path, f))
 
@@ -102,7 +111,7 @@ class Offline_ActivityLearning(object):
         path = os.path.join(self.path, 'no_consent')
         for d_cnt, date in sorted(enumerate(os.listdir(path))):
 
-            if os.path.isdir(os.path.join(self.processed_path, date)):
+            if os.path.isdir(os.path.join(self.events_path, date)):
                 print "%s already processed" % date
                 continue
 
@@ -121,15 +130,15 @@ class Offline_ActivityLearning(object):
 
         list_of_events = []
         for date in sorted(os.listdir(self.events_path)):
-            if os.path.isdir(os.path.join(self.processed_path, date)):
+            if os.path.isdir(os.path.join(self.qsr_path, date)):
                 print "%s already processed" % date
                 continue
 
             path = os.path.join(self.events_path, date)
-            print ">", path
+            print " >", date
             for recording in sorted(os.listdir(path)):
                 region = "Kitchen"   #todo: remove this region
-                if not os.path.isfile(os.path.join(self.processed_path, recording)):
+                if not os.path.isfile(os.path.join(self.qsr_path, recording)):
                     list_of_events.append((recording, path, self.soma_objects[region], self.qsr_mean_window))
 
         if len(list_of_events) > 0:
@@ -149,7 +158,8 @@ class Offline_ActivityLearning(object):
     def make_temp_histograms_sequentially(self):
         """find the length of the code book, i.e. all unique code words"""
         print "\nfind all unique code words"
-        self.len_of_code_book = h.create_temp_histograms(self.path)
+
+        self.len_of_code_book = h.create_temp_histograms(self.qsr_path, self.accu_path)
         return True
 
     def make_term_doc_matrix(self, parallel=0, low_instances=3):
@@ -165,7 +175,7 @@ class Offline_ActivityLearning(object):
         list_of_histograms = []
         for d_cnt, date in sorted(enumerate(os.listdir(self.hist_path))):
             directory = os.path.join(self.hist_path, date)
-            print directory
+            print " >", date
             for recording in sorted(os.listdir(directory)):
                 list_of_histograms.append((recording, directory, len_of_code_book))
 
@@ -182,31 +192,37 @@ class Offline_ActivityLearning(object):
                 print "adding to feature space: ", event[0]
                 results.append(h.worker_padd(event))
 
-        ## MIGHT WANT TO DUMP THE LOCATION HERE?
         uuids = [uuid for (uuid, hist) in results]
         f = open(self.accu_path + "/list_of_uuids.p", "w")
         pickle.dump(uuids, f)
         f.close()
 
-        features = np.vstack([hist for (uuid, hist) in results])
         # features = np.vstack(results)
-        new_features = h.recreate_data_with_high_instance_graphlets(self.path, features, low_instances)
+        features = np.vstack([hist for (uuid, hist) in results])
+        new_features = h.recreate_data_with_high_instance_graphlets(self.accu_path, features, low_instances)
         return True
 
-
     def learn_activities(self, singular_val_threshold=2.0, assign_clstr=0.1):
-        tf_idf_scores = tfidf.get_tf_idf_scores(self.path)
-        #print tf_idf_scores
-        tfidf.get_svd_learn_clusters(self.path, tf_idf_scores, singular_val_threshold, assign_clstr)
+        """run tf-idf and LSA on the term frequency matrix. """
+        print "\nrunning tf-idf weighting, and LSA:"
 
+        tf_idf_scores = tfidf.get_tf_idf_scores(self.accu_path)
+        U, Sigma, VT = tfidf.get_svd_learn_clusters(self.accu_path, tf_idf_scores, singular_val_threshold, assign_clstr)
+        tfidf.dump_lsa_output(self.lsa_path, (U, Sigma, VT))
+        print "number of LSA activities learnt: %s. left: %s. right:%s" % (len(Sigma), U.shape, VT.shape)
+        print "LSA - done."
         return True
 
 
     def learn_topic_model_activities(self, n_iters, create_images, dirichlet_params, class_threshold):
+        """learn a topic model using LDA. """
+        print "\nLearning a topic model with LDA:"
 
         n_topics = 10
-        segmented_out, dictionary_codebook = tm.run_topic_model(self.path, n_iters, n_topics, dbg, create_images, dirichlet_params, class_threshold)
-        (doc_topic, topic_word, code_book, pred_labels) = segmented_out
+        doc_topic, topic_word = tm.run_topic_model(self.accu_path, n_iters, n_topics, create_images, dirichlet_params, class_threshold)
+
+        tm.dump_lda_output(self.lda_path, doc_topic, topic_word)
+        print "Topic Modelling - done.\n"
         return True
 
 
@@ -218,7 +234,8 @@ if __name__ == "__main__":
     singular_val_threshold = 10
     assign_clstr = 0.01
 
-    n_iters = 10
+    low_instances = 5
+    n_iters = 1000
     create_images = False
     dirichlet_params = (0.5, 0.03)
     class_threshold = 0.3
@@ -228,6 +245,8 @@ if __name__ == "__main__":
     o.get_events()
     o.encode_qsrs(parallel)
     o.make_temp_histograms_sequentially()
-    o.make_term_doc_matrix(parallel, low_instances=1)
+    o.make_term_doc_matrix(parallel, low_instances)
     o.learn_activities(singular_val_threshold, assign_clstr)
     o.learn_topic_model_activities(n_iters, create_images, dirichlet_params, class_threshold  )
+
+    print "\n completed learning phase"

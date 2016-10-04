@@ -35,22 +35,22 @@ def load_e(directory, event_file):
         return None
 
 
-def load_all_learning_files(path):
-    print "loading files..."
-    path_ = os.path.join(path, 'Learning', 'accumulate_data')
+def load_all_learning_files(accu_path):
+    # print "loading files..."
 
-    with open(path_ + "/code_book.p", 'r') as f:
+    with open(accu_path + "/code_book.p", 'r') as f:
         code_book = pickle.load(f)
 
-    with open(path_ + "/graphlets.p", 'r') as f:
+    with open(accu_path + "/graphlets.p", 'r') as f:
         graphlets = pickle.load(f)
 
-    with open(path_ + "/feature_space.p", 'r') as f:
+    with open(accu_path + "/feature_space.p", 'r') as f:
         data = pickle.load(f)
+
     return code_book, graphlets, data
 
 
-def genome(filepath, data1, yrange, it, vis=False):
+def genome(filepath, data1, yrange, title="", vis=False):
     t = np.arange(0.0, len(data1), 1)
     #print "data", min(data1), max(data1), sum(data1)/float(len(data1))
 
@@ -61,14 +61,15 @@ def genome(filepath, data1, yrange, it, vis=False):
     ax1.vlines(t, [0], data1)
     ax1.set_xlabel('code words', fontsize=20)
     ax1.set_ylim(yrange)
-    title = 'Latent Concept %s' % it
+
     ax1.set_title(title, fontsize=25)
     ax1.grid(True)
     filepath_g = os.path.join(filepath, "graphs")
     if not os.path.exists(filepath_g):
         os.makedirs(filepath_g)
 
-    fig.savefig(filepath_g + "/genome_%s.png" %it, bbox_inches='tight')
+    filename = title.replace(" ", "_")+".png"
+    fig.savefig(filepath_g + "/" + filename, bbox_inches='tight')
     if vis:
         plt.show()
 

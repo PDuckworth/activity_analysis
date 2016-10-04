@@ -23,17 +23,17 @@ from sklearn.cluster import KMeans
 from scipy.spatial.distance import pdist, cdist, euclidean
 
 
-def get_tf_idf_scores(path, input_data=None, vis=False):
+def get_tf_idf_scores(accu_path, input_data=None, vis=False):
 
     try:
         (code_book, graphlets, data) = input_data
     except:
-        code_book, graphlets, data = utils.load_all_learning_files(path)
+        code_book, graphlets, data = utils.load_all_learning_files(accu_path)
 
     """BINARY COUNTING OF FEATURES:"""
     feature_freq = (data != 0).sum(axis=0)  # TF: document_frequencies
     (N, f) = data.shape                     # Number of documents, and number of features
-    print "nuber of documents = %s, number of features = %s " % (N, f)
+    print "number of documents = %s, number of features = %s " % (N, f)
 
     """
     ## Inverse document frequency scores
@@ -60,19 +60,9 @@ def get_tf_idf_scores(path, input_data=None, vis=False):
     return tf_idf_scores
 
 
-
-
-
-
-def get_svd_learn_clusters(path, data=None, sing_threshold=2.0, assign_clstr=0.1, vis=False):
+def get_svd_learn_clusters(accu_path, data=None, sing_threshold=2.0, assign_clstr=0.1, vis=False):
     """First runs the decomposition for maximum number of singular values.
     Then reruns on a subset > than some value"""
-
-    # with open(path + "Learning/accumulate_data/labels.p", 'r') as f:
-    #     labels = pickle.load(f)
-
-    with open(path + "Learning/accumulate_data/graphlets.p", 'r') as f:
-        graphlets = pickle.load(f)
 
     (N, f) = data.shape
     all_components = min(N,f)
@@ -81,39 +71,44 @@ def get_svd_learn_clusters(path, data=None, sing_threshold=2.0, assign_clstr=0.1
     # print "Sigma:", Sigma
     best_components = sum(Sigma > sing_threshold)
     U, Sigma, VT = randomized_svd(data, n_components=best_components, n_iter=5, random_state=None)
-
-    # print "\npredicted classes:", [np.argmax(doc) for doc in U]
     pred_labels = [np.argmax(doc) if np.max(doc) > assign_clstr else 100 for doc in U]
     # print "predicted classes:", pred_labels
 
-    graph_path = os.path.join(path, 'Learning', 'accumulate_data')
-    utils.screeplot(graph_path, Sigma, all_components, vis)
+    utils.screeplot(accu_path, Sigma, all_components, vis)
 
-    max_= 0
+    """Plot a graph for each right singular vector (VT)"""
+    max_, min_ = 0, 100
     min_=100
     for i in VT:
         if max(i)>max_: max_ = max(i)
         if min(i)<min_: min_ = min(i)
 
-    print "\n%s Activities Learnt" % best_components
-    activities_path = os.path.join(path, 'Learning', "accumulate_data", "activities")
-    if not os.path.exists(activities_path):
-        os.makedirs(activities_path)
-        f = open(os.path.join(activities_path, "v_singular_mat.p"), "w")
-        pickle.dump(VT, f)
-        f.close()
+    if vis:
+        with open(accu_path + "/graphlets.p", 'r') as f:
+            graphlets = pickle.load(f)
 
-    print "\nVT: "
     for i, vocabulary in enumerate(VT):
-        print i, vocabulary
-
+        title = 'Latent Concept %s' % i
+        utils.genome(accu_path, vocabulary, [min_, max_], title)
         if vis:
             for c, v in enumerate(vocabulary):
                 if v > 0.1:
                     print "\n",c,  graphlets[c]
+    return U, Sigma, VT
 
-        utils.genome(graph_path, vocabulary, [min_, max_], i)
-    return
+
+def dump_lsa_output(path, (U, Sigma, VT)):
+    f = open(os.path.join(path, "u_singular_mat.p"), "w")
+    pickle.dump(U, f)
+    f.close()
+
+    f = open(os.path.join(path, "sigma_mat.p"), "w")
+    pickle.dump(Sigma, f)
+    f.close()
+
+    f = open(os.path.join(path, "v_singular_mat.p"), "w")
+    pickle.dump(VT, f)
+    f.close()
 
 
 if __name__ == "__main__":
