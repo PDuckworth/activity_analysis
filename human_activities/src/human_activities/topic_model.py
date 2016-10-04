@@ -171,6 +171,17 @@ def dump_lda_output(path, doc_topic, topic_word):
     pickle.dump(topic_word, f)
     f.close()
 
+    """Plot a graph for each topic word distribution (vocabulary)"""
+    max_, min_ = 0, 100
+    min_=100
+    for i in topic_word:
+        if max(i)>max_: max_ = max(i)
+        if min(i)<min_: min_ = min(i)
+
+    for i, vocabulary in enumerate(topic_word):
+        title = 'Topic %s' % i
+        utils.genome(path, vocabulary, [min_, max_], title)
+
     # f = open(os.path.join(path, "pred_labels.p"), "w")
     # pickle.dump(pred_labels, f)
     # f.close()
@@ -184,7 +195,9 @@ if __name__ == "__main__":
     create_images = False
     dirichlet_params = (0.5, 0.03)
 
+    date = str(datetime.datetime.now().date())
     path = '/home/' + getpass.getuser() + '/SkeletonDataset/'
+    accu_path = os.path.join(path, 'Learning', 'accumulate_data', date, 'LDA')
 
     all_topics = [10]
     class_threshold = 0.3
@@ -194,6 +207,7 @@ if __name__ == "__main__":
         print "\ntopics = %s. " % n_topics
         doc_topic, topic_word = run_topic_model(path, n_iters, n_topics,  create_images, dirichlet_params, class_threshold)
 
+        dump_lda_output(accu_path, doc_topic, topic_word)
         # results[n_topics] = print_results(true_labels, pred_labels, n_topics)
 
     # print "\nRESULTS:"

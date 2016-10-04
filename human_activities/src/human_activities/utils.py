@@ -81,6 +81,7 @@ def screeplot(filepath, sigma, comps, div=2, vis=False):
 
     plt.subplot(2, 1, 1)
     plt.plot(x, y, "o-", ms=2)
+
     xticks = ["Comp." + str(i) if i%2 == 0 else "" for i in x]
 
     plt.xticks(x, xticks, rotation=45, fontsize=20)
