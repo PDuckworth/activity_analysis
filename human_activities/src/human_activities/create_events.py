@@ -2,43 +2,19 @@
 __author__ = 'p_duckworth'
 import os, sys, csv
 import pymongo
-import cPickle as pickle
 import itertools
+import cPickle as pickle
 import multiprocessing as mp
 import numpy as np
-import getpass
-import bisect
+import scipy as sp
 import math
+import bisect
+import getpass
+from scipy import signal
 import matplotlib.pyplot as plt
+import utils as utils
 from tf.transformations import euler_from_quaternion
 from qsrlib_io.world_trace import Object_State, World_Trace
-
-def save_event(e, loc=None):
-    """Save the event into an Events folder"""
-
-    p = e.dir.split('/')
-    if loc != None:
-        p[4] = loc
-    new_path = '/'.join(p[:-1])
-
-    if not os.path.isdir(new_path):
-        os.system('mkdir -p ' + new_path)
-    f = open(os.path.join(new_path, p[-1] +".p"), "w")
-    pickle.dump(e, f, 2)
-    f.close()
-
-def load_e(directory, event_file):
-    """Loads an event file along with exception raise msgs"""
-
-    try:
-        file = directory + "/" + event_file
-        with open(file, 'r') as f:
-            e = pickle.load(f)
-        return e
-
-    except (EOFError, ValueError, TypeError), error:
-        print "Load Error: ", error, directory, event_file
-        return None
 
 
 class event(object):
@@ -46,8 +22,8 @@ class event(object):
     def __init__(self, uuid=None, dir_=None, waypoint=None):
 
         self.uuid = uuid
-        #self.start_frame, self.end_frame = self.get_last_frame()
-        self.waypoint = waypoint
+        # self.start_frame, self.end_frame = self.get_last_frame()
+        # self.waypoint = waypoint
         self.dir = dir_
 
         self.sorted_timestamps = []
@@ -58,7 +34,68 @@ class event(object):
         self.robot_data = {}            #type: dict[timepoint][joint_id]= ((x, y, z), (roll, pitch, yaw))
         # self.world = World_Trace()
 
-    def apply_mean_filter(self, window_length=3):
+    def apply_median_filter(self, window_size=11, vis=False):
+        """Once obtained the joint x,y,z coords.
+        Apply a median filter over a temporal window to smooth the joint positions.
+        Whilst doing this, create a world Trace object"""
+
+        fx = 525.0
+        fy = 525.0
+        cx = 319.5
+        cy = 239.5
+
+        data, f_data, ob_states = {}, {}, {}
+        self.camera_world = World_Trace()
+        self.filtered_skeleton_data = {}
+
+        for t in self.sorted_timestamps:
+            self.filtered_skeleton_data[t] = {}  # initialise with all timepoints
+            for joint_id, (x,y,z) in self.skeleton_data[t].items():
+                try:
+                    data[joint_id]["x"].append(x)
+                    data[joint_id]["y"].append(y)
+                    data[joint_id]["z"].append(z)
+                except:
+                    data[joint_id] = {"x":[x], "y":[y], "z":[z]}
+
+        for joint_id, joint_dic in data.items():
+            f_data[joint_id] = {}
+            for dim, values in joint_dic.items():
+                filtered_values = sp.signal.medfilt(values, window_size) # filter
+                f_data[joint_id][dim] = filtered_values
+
+                if dim is "z" and 0 in filtered_values:
+                    print "Z should never be 0. (distance to camera)."
+                    vis = True
+
+                if vis and "hand" in joint_id:
+                    print joint_id
+                    title1 = 'input %s position: %s' % (joint_id, dim)
+                    title2 = 'filtered %s position: %s' % (joint_id, dim)
+                    plot_the_results(values, filtered_values, title1, title2)
+
+            # Create a QSRLib format list of Object States (for each joint id)
+            for cnt, t in enumerate(self.sorted_timestamps):
+                x = f_data[joint_id]["x"][cnt]
+                y = f_data[joint_id]["y"][cnt]
+                z = f_data[joint_id]["z"][cnt]
+
+                # add the x2d and y2d (using filtered x,y,z data)
+                # print self.uuid, t, joint_id, (x,y,z)
+                x2d = int(x*fx/z*1 +cx);
+                y2d = int(y*fy/z*-1+cy);
+                self.filtered_skeleton_data[t][joint_id] = (x, y, z, x2d, y2d)    # Kept for Legacy
+                try:
+                    ob_states[joint_id].append(Object_State(name=joint_id, timestamp=cnt, x=x, y=y, z=z))
+                except:
+                    ob_states[joint_id] = [Object_State(name=joint_id, timestamp=cnt, x=x, y=y, z=z)]
+
+        # #Add all the joint IDs into the World Trace
+        for joint_id, obj in ob_states.items():
+            self.camera_world.add_object_state_series(obj)
+
+
+    def apply_mean_filter_old(self, window_length=3):
         """Once obtained the joint x,y,z coords.
         Apply a median filter over a temporal window to smooth the joint positions.
         Whilst doing this, create a world Trace object"""
@@ -105,7 +142,9 @@ class event(object):
 
     def get_world_frame_trace(self, world_objects):
         """Accepts a dictionary of world (soma) objects.
-        Adds the position of the object at each timepoint into the World Trace"""
+        Adds the position of the object at each timepoint into the World Trace
+        Note 'frame' is the actual detection file number. 't' is a timestamp starting from 0.
+        't' is used in the World Trace."""
 
         ob_states={}
         world = World_Trace()
@@ -133,11 +172,10 @@ class event(object):
 
         for object_state in ob_states.values():
             world.add_object_state_series(object_state)
-
         self.map_world = world
 
 
-def get_event(recording, path, soma_objects, config_data, reduce_frame_rate=2, mean_window=5):
+def get_event(recording, path, soma_objects, reduce_frame_rate=2, mean_window=5):
     """create event class from a recording"""
 
     """directories containing the data"""
@@ -146,33 +184,20 @@ def get_event(recording, path, soma_objects, config_data, reduce_frame_rate=2, m
     d_robot = os.path.join(d1, 'robot/')
 
     """information stored in the filename"""
+
     try:
-        uuid = recording.split('_')[-2]
-        waypoint = recording.split('_')[-1]
+        uuid = recording.split('_')[-1]
         date = recording.split('_')[0]
         time = recording.split('_')[1]
     except:
          print "recording not found"
          return
-    # print uuid, waypoint, date, time
+    print uuid, date, time
 
-    """ Get the robot's meta data"""
-    # if os.path.isfile(os.path.join(d1, 'meta.txt')):
-    #     meta = open(os.path.join(d1, 'meta.txt'), 'r')
-    #     for count, line in enumerate(meta):
-    #         if count == 0: region_id = line.split('\n')[0].split(':')[1]
-    #         elif count == 1: region = line.split('\n')[0].split(':')[1]
-    #         elif count == 2: pan = int(line.split('\n')[0].split(':')[1])
-    #         elif count == 3: tilt = int(line.split('\n')[0].split(':')[1])
-    pan = config_data['pan']
-    tilt = config_data['tilt']
-    # pvel = config_data['pvel']
-    # tvel = config_data['tvel']
-    print "uid: %s. date: %s. waypoint: %s. pan: %s. tilt: %s" % (uuid, date, waypoint, pan, tilt)
-
+    print "uid: %s. date: %s. time: %s." % (uuid, date, time)
 
     """initialise event"""
-    e = event(uuid, d1, waypoint)
+    e = event(uuid, d1)
 
     """get the skeleton data from each timepoint file"""
     sk_files = [f for f in os.listdir(d_sk) if os.path.isfile(os.path.join(d_sk, f))]
@@ -193,40 +218,30 @@ def get_event(recording, path, soma_objects, config_data, reduce_frame_rate=2, m
                 e.sorted_ros_timestamps.append(np.float64(t))
 
             # read the joint name
-            elif (count-1)%10 == 0:
+            elif (count-1)%11 == 0:
                 j = line.split('\n')[0]
                 e.skeleton_data[frame][j] = []
             # read the x value
-            elif (count-1)%10 == 2:
+            elif (count-1)%11 == 2:
                 a = float(line.split('\n')[0].split(':')[1])
                 e.skeleton_data[frame][j].append(a)
             # read the y value
-            elif (count-1)%10 == 3:
+            elif (count-1)%11 == 3:
                 a = float(line.split('\n')[0].split(':')[1])
                 e.skeleton_data[frame][j].append(a)
             # read the z value
-            elif (count-1)%10 == 4:
+            elif (count-1)%11 == 4:
                 a = float(line.split('\n')[0].split(':')[1])
                 e.skeleton_data[frame][j].append(a)
+
         frame+=1
+    # for frame, data in  e.skeleton_data.items():
+        # print frame, data['head']
+    # sys.exit(1)
 
     """ apply a skeleton data filter and create a QSRLib.World_Trace object"""
-    e.apply_mean_filter(window_length=mean_window)
-
-    """add the x2d and y2d (using filtered x,y,z data) """
-    """3d to 2d translation parameters"""
-    fx = 525.0
-    fy = 525.0
-    cx = 319.5
-    cy = 239.5
-
-    for frame in e.sorted_timestamps:
-        for joint, j in e.filtered_skeleton_data[frame].items():
-            (x,y,z) = j
-            x2d = int(x*fx/z*1 +cx);
-            y2d = int(y*fy/z*-1+cy);
-            new_j = (x, y, z, x2d, y2d)
-            e.filtered_skeleton_data[frame][joint] = new_j
+    # e.apply_mean_filter(window_length=mean_window)
+    e.apply_median_filter(mean_window)
 
     """ read robot odom data"""
     r_files = [f for f in os.listdir(d_robot) if os.path.isfile(os.path.join(d_robot, f))]
@@ -252,29 +267,37 @@ def get_event(recording, path, soma_objects, config_data, reduce_frame_rate=2, m
                 az = float(line.split('\n')[0].split(':')[1])
             elif count == 8:
                 aw = float(line.split('\n')[0].split(':')[1])
+            elif count == 10:
+                pan = float(line.split('\n')[0].split(':')[1])
+            elif count == 11:
+                tilt = float(line.split('\n')[0].split(':')[1])
+
                 # ax,ay,az,aw
                 roll, pitch, yaw = euler_from_quaternion([ax, ay, az, aw])    #odom
-                yaw += pan*math.pi / 180.                   # this adds the pan of the ptu state when recording took place.
-                pitch += tilt*math.pi / 180.                # this adds the tilt of the ptu state when recording took place.
+                #print ">", roll, pitch, yaw
+                yaw += pan #*math.pi / 180.                   # this adds the pan of the ptu state when recording took place.
+                pitch += tilt #*math.pi / 180.                # this adds the tilt of the ptu state when recording took place.
                 e.robot_data[frame][1] = [roll,pitch,yaw]
 
-    """ add the map frame data for the skeleton detection"""
+    # add the map frame data for the skeleton detection
     for frame in e.sorted_timestamps:
+        """Note frame does not start from 0. It is the actual file frame number"""
+
         e.map_frame_data[frame] = {}
         xr, yr, zr = e.robot_data[frame][0]
         yawr = e.robot_data[frame][1][2]
         pr = e.robot_data[frame][1][1]
 
-        """ because the Nite tracker has z as depth, height as y and left/right as x
-         we translate this to the map frame with x, y and z as height. """
+        #  because the Nite tracker has z as depth, height as y and left/right as x
+        #  we translate this to the map frame with x, y and z as height.
         for joint, (y,z,x,x2d,y2d) in e.filtered_skeleton_data[frame].items():
-
+            # transformation from camera to map
             rot_y = np.matrix([[np.cos(pr), 0, np.sin(pr)], [0, 1, 0], [-np.sin(pr), 0, np.cos(pr)]])
             rot_z = np.matrix([[np.cos(yawr), -np.sin(yawr), 0], [np.sin(yawr), np.cos(yawr), 0], [0, 0, 1]])
             rot = rot_z*rot_y
 
             pos_r = np.matrix([[xr], [yr], [zr+1.66]]) # robot's position in map frame
-            pos_p = np.matrix([[x], [-y], [z]]) # person's position in camera frame
+            pos_p = np.matrix([[x], [-y], [-z]]) # person's position in camera frame
 
             map_pos = rot*pos_p+pos_r # person's position in map frame
             x_mf = map_pos[0,0]
@@ -289,10 +312,10 @@ def get_event(recording, path, soma_objects, config_data, reduce_frame_rate=2, m
     # sys.exit(1)
 
     e.get_world_frame_trace(soma_objects)
-    save_event(e, "Events")
+    utils.save_event(e, "Learning/Events")
 
 
-def get_soma_objects(region=None):
+def get_soma_objects():
     #todo: read from soma2 mongo store.
 
     """TSC OBJECTS"""
