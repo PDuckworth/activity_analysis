@@ -7,6 +7,7 @@ project(record_skeletons_action)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  geometry_msgs
   actionlib
   actionlib_msgs
 #  skeleton_tracker
@@ -64,7 +65,7 @@ add_action_files(
 
 # Generate added messages and services with any dependencies listed here
 generate_messages(
- DEPENDENCIES actionlib_msgs
+ DEPENDENCIES std_msgs geometry_msgs actionlib_msgs
 )
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -98,7 +99,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #   LIBRARIES activity_data
-   CATKIN_DEPENDS rospy std_msgs #skeleton_tracker
+   CATKIN_DEPENDS rospy std_msgs geometry_msgs #skeleton_tracker
 #  DEPENDS system_lib
 )
 
