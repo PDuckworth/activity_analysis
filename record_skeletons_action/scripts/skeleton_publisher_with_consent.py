@@ -214,24 +214,12 @@ class SkeletonManagerConsent(object):
         if self.listen_to == 1:
             self.robot_pose = msg
             if self._flag_robot == 0:
-                print ' >robot pose received'
+                rospy.loginfo("pub> robot pose received")
                 self._flag_robot = 1
 
     def ptu_callback(self, msg):
         if self.listen_to == 1:
             self.ptu_pan, self.ptu_tilt = msg.position
-
-    def node_callback(self, msg):
-        if self.listen_to == 1:
-            self.current_node = msg.data
-            if self._flag_node == 0:
-                print ' >current node received'
-                self._flag_node = 1
-
-    def map_callback(self, msg):
-        # get the topological map name
-        self.map_info = msg.map
-        self.topo_listerner.unregister()
 
     def rgb_callback(self, msg):
         if self.listen_to == 1:
@@ -239,17 +227,8 @@ class SkeletonManagerConsent(object):
             rgb = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
             self.rgb = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
             if self._flag_rgb is 0:
-                print ' >rgb image received'
+                rospy.loginfo("pub> rgb image received")
                 self._flag_rgb = 1
-
-    #def rgb_sk_callback(self, msg):
-    #    if self.listen_to == 1:
-    #        self.rgb_sk_msg = msg   # to serve to the webserver - for consent
-    #        rgb_sk = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
-    #        self.rgb_sk = cv2.cvtColor(rgb_sk, cv2.COLOR_RGB2BGR)
-    #        if self._flag_rgb_sk is 0:
-    #            print ' >rgb skel image recived'
-    #            self._flag_rgb_sk = 1
 
     def depth_callback(self, msg):
         if self.listen_to == 1:
@@ -259,7 +238,7 @@ class SkeletonManagerConsent(object):
             cv2.normalize(depth_array, depth_array, 0, 1, cv2.NORM_MINMAX)
             self.xtion_img_d_rgb = depth_array*255
             if self._flag_depth is 0:
-                print ' >depth image recived'
+                rospy.loginfo("pub> depth image recived")
                 self._flag_depth = 1
 
 if __name__ == '__main__':
