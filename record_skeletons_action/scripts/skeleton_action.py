@@ -180,7 +180,7 @@ class skeleton_server(object):
     def log_view_info(self, res, ind, waypoint, starttime=None, endstime=None):
         """Given the action is over, log the viewpoint and bool output of the recording (successfull?)"""
 
-        vinfo = ViewInfo()
+         vinfo = ViewInfo()
         vinfo.waypoint = waypoint
         vinfo.map_name  = rospy.get_param('/topological_map_name', "no_map_name")
         vinfo.mode = "activity_rec"
@@ -190,13 +190,16 @@ class skeleton_server(object):
         vinfo.ptu_state = JointState(name=['pan', 'tilt'], position=[self.ptu_values[0], self.ptu_values[1]],
             velocity= [self.ptu_values[2], self.ptu_values[3]])
 
-        if ind>0: vinfo.nav_failure = False
-        else: vinfo.nav_failure = True
+        if ind>0: vinfo.nav_failure = True
+        else: vinfo.nav_failure = False
 
         (request_consent, consent_msg) = res
+        vinfo.success = False
         if consent_msg == "everything": vinfo.success = True
-        vinfo.soma_objs = "%s_%s" % (self.selected_object_id, self.selected_object_pose)
-        self.msg_store.insert(vinfo)
+        
+        vinfo.soma_objs = self.selected_object + "_" + repr(self.selected_object_pose)
+        rospy.loginfo("logged view stats: nav:%s, record:%s, consent:%s." % (vinfo.nav_failure, bool(request_consent), vinfo.success)) 
+        self.views_msg_store.insert(vinfo)
 
 
     def goto(self):
@@ -209,7 +212,6 @@ class skeleton_server(object):
 
         inds = range(len(self.possible_poses))
         random.shuffle(inds)
-
 
         for ind in inds:
             """For all possible viewpoints, try to go to one - if fails, loop."""
@@ -495,6 +497,7 @@ class skeleton_server(object):
             self.navClient.wait_for_result()
 
     def nav_goals_client(self, roi):
+        rospy.loginfo("waiting for nav goals client")
         rospy.wait_for_service('/nav_goals')
         proxy = rospy.ServiceProxy('/nav_goals', NavGoals)
         req = NavGoalsRequest(n=1000, inflation_radius=0.5, roi=roi)
