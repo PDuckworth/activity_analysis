@@ -47,7 +47,7 @@ class skeleton_server(object):
         self._as = actionlib.SimpleActionServer(self._action_name, skeletonAction, \
                                                     execute_cb=self.execute_cb, auto_start=False)
         self._as.start()
-        self.load_config()
+        #self.load_config()
         self.number_of_frames_before_consent_needed = num_of_frames
 
         # skeleton publisher class (logs data given a detection)
@@ -91,9 +91,7 @@ class skeleton_server(object):
         # visualizing the view point goal in RVIZ
         self.pub_viewpose = rospy.Publisher('activity_view_goal', PoseStamped, queue_size=10)
         self.pub_all_views = rospy.Publisher('activity_possible_view_goals', PoseArray, queue_size=10)
-
         print ">>initialised recording action"
-
 
     def execute_cb(self, goal):
         self.listen_to_robot_pose = 1
@@ -109,7 +107,7 @@ class skeleton_server(object):
         self.create_possible_navgoals()
 
         self.generate_viewpoints()
-        ind = self.goto()
+        nav_fail = self.goto()
 
         consented_uuid = ""
         request_consent = 0
@@ -124,9 +122,9 @@ class skeleton_server(object):
                  break
 
             for cnt, (uuid, incr_msgs) in enumerate(self.sk_publisher.accumulate_data.items()):
-                #print ">>", len(self.sk_publisher.accumulate_data[uuid]), uuid
+                # print ">>", len(self.sk_publisher.accumulate_data[uuid]), uuid
 
-                #publish the location of a person as a gaze request
+                # publish the location of a person as a gaze request
                 if cnt == 0 and len(incr_msgs) > 0:
                     if incr_msgs[-1].joints[0].name == 'head':
                         head = Header(frame_id='head_xtion_depth_optical_frame')
@@ -156,7 +154,7 @@ class skeleton_server(object):
 
         # LOG THE STATS TO MONGO
         res = (request_consent, consent_msg)
-        self.log_view_info(res, ind, goal.waypoint, start, end)
+        self.log_view_info(res, nav_succ, goal.waypoint, start, end)
 
         # reset everything:
         self.reset_everything()
@@ -177,10 +175,10 @@ class skeleton_server(object):
         self.sk_publisher.reset_data()
         print "finished action\n"
 
-    def log_view_info(self, res, ind, waypoint, starttime=None, endstime=None):
+    def log_view_info(self, res, nav_fail, waypoint, starttime=None, endstime=None):
         """Given the action is over, log the viewpoint and bool output of the recording (successfull?)"""
 
-         vinfo = ViewInfo()
+        vinfo = ViewInfo()
         vinfo.waypoint = waypoint
         vinfo.map_name  = rospy.get_param('/topological_map_name', "no_map_name")
         vinfo.mode = "activity_rec"
@@ -190,41 +188,46 @@ class skeleton_server(object):
         vinfo.ptu_state = JointState(name=['pan', 'tilt'], position=[self.ptu_values[0], self.ptu_values[1]],
             velocity= [self.ptu_values[2], self.ptu_values[3]])
 
-        if ind>0: vinfo.nav_failure = True
-        else: vinfo.nav_failure = False
+        vinfo.nav_failure = nav_fail
 
         (request_consent, consent_msg) = res
         vinfo.success = False
         if consent_msg == "everything": vinfo.success = True
         
-        vinfo.soma_objs = self.selected_object + "_" + repr(self.selected_object_pose)
+        vinfo.soma_objs = [self.selected_object, repr(self.selected_object_pose)]
         rospy.loginfo("logged view stats: nav:%s, record:%s, consent:%s." % (vinfo.nav_failure, bool(request_consent), vinfo.success)) 
         self.views_msg_store.insert(vinfo)
 
 
+    def learn_best_viewpoint(self):
+        """Query the database and retrieve the good views:
+        1. where nav did fail
+        2. which recorded and received consenst.
+        """
+        query = {"mode":"activity_rec", "nav_failure":False, "success":True}
+        ret = self.views_msg_store.query(ViewInfo._type)
+        for view,meta in ret:
+            print ">>", view.soma_objs[0], view.soma_objs[1].position
+        
+        
+    
     def goto(self):
         """
         Given a viewpoint - send the robot there, and fix the PTU angle
+        returns: Nav_Failure.
         """
-
-        # r = randint(0,len(poses))-1
-        # print "ViewPoint: (%s,%s). Yaw: %s rads. Dist: %s" % (poses[r].position.x, poses[r].position.y, yaws[r], dists[r])
-
         inds = range(len(self.possible_poses))
         random.shuffle(inds)
-
-        for ind in inds:
+        
+        # add one more possible pose - for the waypoint pose
+        inds.append(len(self.possible_poses)) 
+        self.possible_poses.append(self.robot_pose)
+		
+        for cnt, ind in enumerate(inds):
             """For all possible viewpoints, try to go to one - if fails, loop."""
 
             if self._as.is_preempt_requested():
                 return
-
-            roll = pitch = 0
-            quaternion = tf.transformations.quaternion_from_euler(roll, pitch, self.possible_yaws[ind])
-            self.possible_poses[ind].orientation.x = quaternion[0]
-            self.possible_poses[ind].orientation.y = quaternion[1]
-            self.possible_poses[ind].orientation.z = quaternion[2]
-            self.possible_poses[ind].orientation.w = quaternion[3]
 
             # Publish ViewPose for visualisation
             s = PoseStamped()
@@ -232,7 +235,7 @@ class skeleton_server(object):
             s.pose = self.possible_poses[ind]
             self.pub_viewpose.publish(s)
 
-            rospy.loginfo("NAV GoTo: x: %s y: %s yaw: %s", self.possible_poses[ind].position.x, self.possible_poses[ind].position.y, self.possible_yaws[ind])
+            rospy.loginfo("NAV GoTo: x: %s y: %s.", self.possible_poses[ind].position.x, self.possible_poses[ind].position.y)
             goal = MonitoredNavigationGoal()
             goal.action_server = 'move_base'
             goal.target_pose.header.frame_id = 'map'
@@ -249,12 +252,10 @@ class skeleton_server(object):
             else:
                 rospy.loginfo("Reached nav goal: %s" % str(res.outcome))
                 self.set_ptu_state()
-                return ind
+                return False
 
-        """IF NO VIEWS work - try looking on mongo for one that has previously worked"""
-
-        """OR Go back to waypoint - self.robot_pose?"""
-        return
+        """IF NO VIEWS work (even the waypoint?)- try looking on mongo for one that has previously worked"""
+        return True
 
 
     def generate_viewpoints(self):
@@ -262,7 +263,8 @@ class skeleton_server(object):
         Given a set of random viewpoints in a roi, filter those too close, and define a yaw for each.
             1. needs to be further away than the lower threshold
             2. must be in the same roi as WP
-            3. create yaw of robot
+            3. create yaw of robot view
+            N/A. as a backup, calculate the viewpoint from the waypoint
         """
         view_goals = PoseArray()
         view_goals.header.frame_id = "/map"
@@ -277,17 +279,31 @@ class skeleton_server(object):
             dist = abs(math.hypot(x_dist, y_dist))
             if dist > self.view_dist_thresh_low:
                 if self.roi_polygon.contains(Point([p.position.x, p.position.y])):
-                    poses.append(p)
                     yaw = math.atan2(y_dist, x_dist)
-                    yaws.append(yaw)
-                    dists.append( (x_dist, y_dist) )
+                    p = self.add_quarternion(p, yaw)
+                    poses.append(p)                    
+                    #yaws.append(yaw)
+                    #dists.append( (x_dist, y_dist) )
 
         view_goals.poses = poses
         self.pub_all_views.publish(view_goals)
-
         self.possible_poses = poses
-        self.possible_yaws = yaws
+        # self.possible_yaws = yaws
 
+        # calculate the view from the waypoint - as a back up
+        x_dist = self.robot_pose.position.x - obj.position.x
+        y_dist = self.robot_pose.position.y - obj.position.y
+        dist = abs(math.hypot(x_dist, y_dist))
+        self.robot_pose = self.add_quarternion(self.robot_pose, math.atan2(y_dist, x_dist))
+
+    def add_quarternion(self, pose, yaw):
+        roll = pitch = 0
+        quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
+        pose.orientation.x = quaternion[0]
+        pose.orientation.y = quaternion[1]
+        pose.orientation.z = quaternion[2]
+        pose.orientation.w = quaternion[3]
+        return pose
 
     def create_possible_navgoals(self, centre=None, N=10, r=None):
         """Given a soma object - create candidate viewpoints around object.
@@ -316,16 +332,21 @@ class skeleton_server(object):
         """Find the roi of the robot at it's waypoint.
            Make sure the randomly generated viewpoints are all in that roi also
         """
+        self.roi_polygon = None
         soma_map = "collect_data_map_cleaned"
         # soma_config = "test"
         # query = {"map":soma_map, "config":soma_config}
         all_rois = self.soma_roi_store.query(SOMA2ROIObject._type)
-        for (roi,meta) in all_rois:
+        for (roi, meta) in all_rois:
             if roi.map_name != soma_map: continue
             if roi.geotype != "Polygon": continue
             polygon = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
             if polygon.contains(Point([self.robot_pose.position.x, self.robot_pose.position.y])):
                 self.roi_polygon = polygon
+                rospy.loginfo("ROI: %s" %roi.type)
+
+        if self.roi_polygon == None:
+            rospy.warn("No ROI defined for this waypoint")
 
 
     def get_soma_objects(self):
@@ -350,9 +371,9 @@ class skeleton_server(object):
         'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
         'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
         'Double_doors_112': (-8.365, -18.440, 1.021),
-        'LAB_TEST_1': (-7.3, -33.4, 1.2),
-        'LAB_TEST_2':(-4.4, -31.8, 1.2),
-        'LAB_TEST_3':(-5.5, 34.0, 1.2)
+        'robot_lab_test_1': (-7.3, -33.4, 1.2),
+        'robot_lab_test_2':(-4.4, -31.8, 1.2),
+        'robot_lab_test_3':(-5.5, 34.0, 1.2)
         }
         # reduce all the objects to those in the same region as the robot
         objects_in_roi = []
@@ -413,7 +434,9 @@ class skeleton_server(object):
 
 
     def upload_images_to_mongo(self, uuid):
-
+        """Send one RGB image to mongodb to be used by the webserver, 
+        to ask for consent on the main PCs screen. 
+        """
         rgb = self.sk_publisher.rgb_msg
         #rgb_sk = self.sk_publisher.rgb_sk_msg
         # depth = self.sk_publisher.depth_msg  # not created anymore
@@ -429,7 +452,7 @@ class skeleton_server(object):
         # depth = self.sk_publisher.accumulate_rgb_images[uuid][-1]
         # query = {"_meta.image_type": "depth_image"}
         # depth_img_to_mongo = self.msg_store.update(message=self.depth_msg, meta={'image_type':"depth_image"}, message_query=query, upsert=True)
-
+        return
 
 
     def signal_start_of_recording(self):
@@ -444,14 +467,13 @@ class skeleton_server(object):
         # tell the webserver to go back to the main page - if no consent was requested
         main_webpage_return()
 
-    def load_config(self):
-
-        self.filepath = os.path.join(roslib.packages.get_pkg_dir("record_skeletons_action"), "config")
-        try:
-            self.config = yaml.load(open(os.path.join(self.filepath, 'config.ini'), 'r'))
-            print "config file loaded", self.config.keys()
-        except:
-            print "no config file found"
+    # def load_config(self):
+        # self.filepath = os.path.join(roslib.packages.get_pkg_dir("record_skeletons_action"), "config")
+        # try:
+            # self.config = yaml.load(open(os.path.join(self.filepath, 'config.ini'), 'r'))
+            # print "config file loaded", self.config.keys()
+        # except:
+            # print "no config file found"
 
     def reset_ptu(self):
         ptu_goal = PtuGotoGoal();
@@ -486,15 +508,15 @@ class skeleton_server(object):
         self.ptu_client.send_goal(ptu_goal)
         self.ptu_client.wait_for_result()
 
-    def go_back_to_where_I_came_from(self):
-        if self.nav_goal_waypoint is not None and self.nav_goal_waypoint != self.config[self.nav_goal_waypoint]['target']:
-            try:
-                # self.navgoal.target = self.config[self.nav_goal_waypoint]['target']
-                self.navgoal.target = self.nav_goal_waypoint
-            except:
-                print "nav goal not set - staying at %s" % self.navgoal.target
-            self.navClient.send_goal(self.navgoal)
-            self.navClient.wait_for_result()
+    # def go_back_to_where_I_came_from(self):
+        # if self.nav_goal_waypoint is not None and self.nav_goal_waypoint != self.config[self.nav_goal_waypoint]['target']:
+            # try:
+                # # self.navgoal.target = self.config[self.nav_goal_waypoint]['target']
+                # self.navgoal.target = self.nav_goal_waypoint
+            # except:
+                # print "nav goal not set - staying at %s" % self.navgoal.target
+            # self.navClient.send_goal(self.navgoal)
+            # self.navClient.wait_for_result()
 
     def nav_goals_client(self, roi):
         rospy.loginfo("waiting for nav goals client")
