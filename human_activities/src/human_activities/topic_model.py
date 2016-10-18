@@ -56,10 +56,11 @@ def object_nodes(graph):
 
     return object_nodes, num_of_eps
 
-def learn_topic_model(X, vocab, n_topics, n_iters, graphlets, dirichlet_params, class_thresh, dbg=False):
+def learn_topic_model(X, vocab, graphlets, config, dbg=False):
 
-    (alpha, eta) = dirichlet_params
-    model = lda.LDA(n_topics=n_topics, n_iter=n_iters, random_state=1, alpha=alpha, eta=eta)
+    alpha = config['dirichlet_params']['alpha']
+    eta = config['dirichlet_params']['eta']
+    model = lda.LDA(n_topics=config['n_topics'], n_iter=config['n_iters'], random_state=1, alpha=alpha, eta=eta)
 
     model.fit(X)  # model.fit_transform(X) is also available
     topic_word = model.topic_word_  # model.components_ also works
@@ -106,7 +107,7 @@ def learn_topic_model(X, vocab, n_topics, n_iters, graphlets, dirichlet_params, 
     # #Each document's most probable topic - don't have the UUIDs, so dont use this.
     # pred_labels = []
     # for n in range(doc_topic.shape[0]):
-    #     if max(doc_topic[n]) > class_thresh:
+    #     if max(doc_topic[n]) > config['class_thresh']:
     #         topic_most_pr = doc_topic[n].argmax()
     #         pred_labels.append(topic_most_pr)
 
@@ -142,13 +143,13 @@ def get_dic_codebook(code_book, graphlets, create_graphlet_images=False):
         create_codebook_images(dictionary_codebook, image_path, dbg)
     return dictionary_codebook
 
-def run_topic_model(accu_path, n_iters, n_topics, create_images, dirichlet_params, class_thresh=0):
+def run_topic_model(accu_path, config):
 
     code_book, graphlets, data = utils.load_all_learning_files(accu_path)
     dictionary_codebook = {}
     try:
         import pyLDAvis
-        dictionary_codebook = get_dic_codebook(code_book, graphlets, create_images)
+        dictionary_codebook = get_dic_codebook(code_book, graphlets, config['create_images'])
     except ImportError:
         print "No module pyLDAvis. Cannot visualise topic model"
 
@@ -156,7 +157,7 @@ def run_topic_model(accu_path, n_iters, n_topics, create_images, dirichlet_param
     vocab = [ "{:20.0f}".format(hash).lstrip() for hash in list(code_book) ]
     # print "vocab:", len(vocab)
 
-    doc_topic, topic_word  = learn_topic_model(data, vocab, n_topics, n_iters, dictionary_codebook, dirichlet_params, class_thresh)
+    doc_topic, topic_word  = learn_topic_model(data, vocab, dictionary_codebook, config)
     print " per document topic proportions: ", doc_topic.shape
     print " per topic word distributions: ", topic_word.shape
 

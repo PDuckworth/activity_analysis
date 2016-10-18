@@ -55,7 +55,7 @@ class event(object):
                     data[joint_id]["x"].append(x)
                     data[joint_id]["y"].append(y)
                     data[joint_id]["z"].append(z)
-                except:
+                except KeyError:
                     data[joint_id] = {"x":[x], "y":[y], "z":[z]}
 
         for joint_id, joint_dic in data.items():
@@ -80,14 +80,20 @@ class event(object):
                 y = f_data[joint_id]["y"][cnt]
                 z = f_data[joint_id]["z"][cnt]
 
-                # add the x2d and y2d (using filtered x,y,z data)
-                # print self.uuid, t, joint_id, (x,y,z)
-                x2d = int(x*fx/z*1 +cx);
-                y2d = int(y*fy/z*-1+cy);
+                 # add the x2d and y2d (using filtered x,y,z data)
+                 # print self.uuid, t, joint_id, (x,y,z)
+                try:
+                    x2d = int(x*fx/z*1 +cx);
+                    y2d = int(y*fy/z*-1+cy);
+                except ValueError:
+                    print "ValueError for %s at frame: %s. t:%s" %(self.uuid, cnt, t)
+                    x2d = 0
+                    y2d = 0
+
                 self.filtered_skeleton_data[t][joint_id] = (x, y, z, x2d, y2d)    # Kept for Legacy
                 try:
                     ob_states[joint_id].append(Object_State(name=joint_id, timestamp=cnt, x=x, y=y, z=z))
-                except:
+                except KeyError:
                     ob_states[joint_id] = [Object_State(name=joint_id, timestamp=cnt, x=x, y=y, z=z)]
 
         # #Add all the joint IDs into the World Trace
@@ -175,7 +181,7 @@ class event(object):
         self.map_world = world
 
 
-def get_event(recording, path, soma_objects, reduce_frame_rate=2, mean_window=5):
+def get_event(recording, path, soma_objects, config):
     """create event class from a recording"""
 
     """directories containing the data"""
@@ -192,9 +198,9 @@ def get_event(recording, path, soma_objects, reduce_frame_rate=2, mean_window=5)
     except:
          print "recording not found"
          return
-    print uuid, date, time
+    # print uuid, date, time
 
-    print "uid: %s. date: %s. time: %s." % (uuid, date, time)
+    print "date: %s. uid: %s. time: %s." % (date, uuid, time)
 
     """initialise event"""
     e = event(uuid, d1)
@@ -206,7 +212,7 @@ def get_event(recording, path, soma_objects, reduce_frame_rate=2, mean_window=5)
     frame = 1
     for file in sorted(sk_files):
         original_frame = int(file.split('.')[0].split('_')[1])
-        if original_frame % reduce_frame_rate != 0: continue
+        if original_frame % config['reduce_frame_rate'] != 0: continue
 
         e.skeleton_data[frame] = {}
         e.sorted_timestamps.append(frame)
@@ -240,8 +246,8 @@ def get_event(recording, path, soma_objects, reduce_frame_rate=2, mean_window=5)
     # sys.exit(1)
 
     """ apply a skeleton data filter and create a QSRLib.World_Trace object"""
-    # e.apply_mean_filter(window_length=mean_window)
-    e.apply_median_filter(mean_window)
+    # e.apply_mean_filter(window_length=config['joints_mean_window'])
+    e.apply_median_filter(config['joints_mean_window'])
 
     """ read robot odom data"""
     r_files = [f for f in os.listdir(d_robot) if os.path.isfile(os.path.join(d_robot, f))]
@@ -363,10 +369,12 @@ if __name__ == "__main__":
     ##DEFAULTS:
     # path = '/home/' + getpass.getuser() + '/Dropbox/Programming/Luice/Datasets/Lucie/'
     path = '/home/' + getpass.getuser() + '/SkeletonDataset'
-    mean_window = 5
+    config = {
+        'reduce_frame_rate' : 3,
+        'joints_mean_window' : 5}
 
     for cnt, f in enumerate(path):
         print "activity from: ", f
-        get_event(f, path, mean_window)
+        get_event(f, path, config)
 
     print "created events in %s directory" % cnt

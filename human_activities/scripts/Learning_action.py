@@ -19,16 +19,6 @@ class Learning_server(object):
 
     def execute(self, goal):
         rerun = 1
-        parallel = 1
-        singular_val_threshold = 10
-
-        assign_clstr = 0.01
-
-        low_instances = 5
-        n_iters = 1000
-        create_images = False
-        dirichlet_params = (0.5, 0.03)
-        class_threshold = 0.3
 
         while not self._as.is_preempt_requested():
             ol = Offline_ActivityLearning(rerun_all=rerun)
@@ -40,18 +30,18 @@ class Learning_server(object):
             ol.get_events()
 
             """encode all the observations using QSRs"""
-            ol.encode_qsrs(parallel)
+            ol.encode_qsrs()
 
             """create histograms with global code book"""
             ol.make_temp_histograms_sequentially()
 
-            ol.make_term_doc_matrix(parallel, low_instances)
+            ol.make_term_doc_matrix()
 
             """create tf-idf and LSA classes"""
-            ol.learn_activities(singular_val_threshold, assign_clstr)
+            ol.learn_activities()
 
             """learn a topic model of activity classes"""
-            ol.learn_topic_model_activities(n_iters, create_images, dirichlet_params, class_threshold)
+            ol.learn_topic_model_activities()
 
             print "\n completed learning phase"
         self._as.set_succeeded(LearningResult())

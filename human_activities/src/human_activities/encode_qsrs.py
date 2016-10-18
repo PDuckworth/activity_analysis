@@ -14,69 +14,48 @@ from qsrlib_utils.utils import merge_world_qsr_traces
 from qsrlib_qstag.qstag import Activity_Graph
 from qsrlib_qstag.utils import *
 
-def QSRLib_param_mapping(world_trace, dynamic_args, objects):
-    """
-    Different QSRLib parameters for different runs.
-
-    %todo: load from confg ?
-    """
-
-    qsrs_for=[]
-    for ob in objects:
-        qsrs_for.append((str(ob), 'left_hand'))
-        qsrs_for.append((str(ob), 'right_hand'))
-
-        which_qsr=["argd", "qtcbs"]
-
-        dynamic_args['argd'] = {"qsrs_for": qsrs_for, "qsr_relations_and_values": {'Touch': 25, 'Near': 50,  'Away': 100, 'Ignore': 10000}}
-        # dynamic_args['argd'] = {"qsrs_for": qsrs_for, "qsr_relations_and_values": {'Touch': 0.25, 'Near': 0.5,  'Away': 1.0, 'Ignore': 10}}
-        dynamic_args['qtcbs'] = {"qsrs_for": qsrs_for, "quantisation_factor": 0.01, "validate": False, "no_collapse": True}
-        dynamic_args["qstag"]["params"] = {"min_rows": 1, "max_rows": 2, "max_eps": 3}
-
-        # Add Torso
-        for ob in objects:
-            qsrs_for.append((str(ob), 'torso'))
-
-    return QSRlib_Request_Message(which_qsr, input_data=world_trace, dynamic_args=dynamic_args)
-
 
 def worker_qsrs(chunk):
-    (file_, path, soma_objects, qsr_mean_window) = chunk
+    (file_, path, soma_objects, config) = chunk
+
     e = utils.load_e(path, file_)
 
     dynamic_args = {}
-    dynamic_args["qstag"] = {}
-    dynamic_args['filters'] = {"median_filter": {"window": qsr_mean_window}}  # This has been updated since ECAI paper.
+    try:
+        dynamic_args['argd'] = config['argd_args']
+        dynamic_args['qtcbs'] = config['qtcbs_args']
+        dynamic_args["qstag"] = {"params" : config['qstag_args']}
+        dynamic_args['filters'] = {"median_filter": {"window": config['qsr_mean_window']}}  # This has been updated since ECAI paper.
+    except KeyError:
+        print "check argd, qtcbs, qstag parameters in config file"
 
-    """ADD OBJECT TYPES into DYNAMIC ARGS """
+
     joint_types = {'head': 'head', 'torso': 'torso', 'left_hand': 'hand', 'right_hand': 'hand', 'left_knee': 'knee', 'right_knee': 'knee',
                    'left_shoulder': 'shoulder', 'right_shoulder': 'shoulder', 'head-torso': 'tpcc-plane'}
-    all_object_types = joint_types.copy()
-
+    object_types = joint_types.copy()
     add_objects = []
     for region, objects in ce.get_soma_objects().items():
         for o in objects:
             add_objects.append(o)
             try:
                 generic_object = "_".join(o.split("_")[:-1])
-                all_object_types[o] = generic_object
+                object_types[o] = generic_object
             except:
                 print "didnt add:", object
+    dynamic_args["qstag"]["object_types"] = object_types
 
-    dynamic_args["qstag"]["object_types"] = all_object_types
-
-    """1. CREATE QSRs FOR Key joints & Object """
-    print " QTC,QDC: "
+    """1. CREATE QSRs FOR joints & Object """
     qsrlib = QSRlib()
-    # print ">>", e.map_world.get_sorted_timestamps()
 
-    # for t in e.map_world.trace:
-    #     print "\nt", t
-    #     for o, state in e.map_world.trace[t].objects.items():
-    #         print o, state.x,state.y,state.z
-    # sys.exit(1)
+    qsrs_for=[]
+    for ob in objects:
+        qsrs_for.append((str(ob), 'left_hand'))
+        qsrs_for.append((str(ob), 'right_hand'))
+        qsrs_for.append((str(ob), 'torso'))
+    dynamic_args['argd']["qsrs_for"] = qsrs_for
+    dynamic_args['qtcbs']["qsrs_for"] = qsrs_for
 
-    req = QSRLib_param_mapping(e.map_world, dynamic_args, soma_objects)
+    req = QSRlib_Request_Message(config['which_qsr'], input_data=e.map_world, dynamic_args=dynamic_args)
     e.qsr_object_frame = qsrlib.request_qsrs(req_msg=req)
 
     # print ">", e.qsr_object_frame.qstag.graphlets.histogram

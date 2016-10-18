@@ -11,7 +11,7 @@ import rospy
 import numpy as np
 import cPickle as pickle
 import multiprocessing as mp
-from soma2_msgs.msg import SOMA2Object   # this might be soma_msg in strands repo
+from soma2_msgs.msg import SOMA2Object
 from soma_manager.srv import SOMA2QueryObjs
 from mongodb_store.message_store import MessageStoreProxy
 from skeleton_tracker.msg import skeleton_message
@@ -27,6 +27,9 @@ class Offline_ActivityLearning(object):
 
     def __init__(self, soma_map="", soma_conf="", rerun_all=0, reduce_frame_rate=2, joints_mean_window=5, qsr_mean_window=3):
         print "initialise activity learning action class"
+
+        self.load_config()
+
         self.path = '/home/' + getpass.getuser() + '/SkeletonDataset/'
         self.date = str(datetime.datetime.now().date())
 
@@ -37,11 +40,6 @@ class Offline_ActivityLearning(object):
         self.query = {} #"number_of_detections":100}
         self.soma_map = soma_map
         self.soma_conf = soma_conf
-
-        """FILTERS all effect each other. Frame rate reduction applied first. Filter to qsrs last."""
-        self.reduce_frame_rate = reduce_frame_rate
-        self.joints_mean_window = joints_mean_window
-        self.qsr_mean_window = qsr_mean_window
 
         """Define all filepaths here"""
         self.events_path = os.path.join(self.path, 'Learning', 'Events')
@@ -55,8 +53,6 @@ class Offline_ActivityLearning(object):
         self.lda_path = os.path.join(self.accu_path, "LDA")
         if not os.path.exists(self.lda_path): os.makedirs(self.lda_path)
 
-        #self.load_config()
-
         """If you want to rerun all the learning each time (not necessary)"""
         if rerun_all:
             """Removes the skeleton pose sequence event and encoded qsr world."""
@@ -66,25 +62,29 @@ class Offline_ActivityLearning(object):
                 os.remove(os.path.join(self.events_path, f))
 
     def load_config(self):
-        """load the config file from the data recordings (from tsc)"""
+        """load a config file for all the learning parameters"""
         try:
-            config_filepath = os.path.join(roslib.packages.get_pkg_dir("skeleton_tracker"), "config")
-            self.config = yaml.load(open(os.path.join(config_filepath, 'config.ini'), 'r'))
+            self.config = yaml.load(open(roslib.packages.get_pkg_dir('human_activities') + '/config/config.ini', 'r'))
             print "config loaded:", self.config.keys()
-        except:
-            try:
-                config_filepath = '/home/' + getpass.getuser() + '/catkin_ws/src/skeleton_tracker/config'
-                self.config = yaml.load(open(os.path.join(config_filepath, 'config.ini'), 'r'))
-                print "config loaded:", self.config.keys()
-            except:
-                print "no config file found"
 
-        # make this smarter - use SomaRoi?
-        self.soma_roi_config = {'KitchenTableLow':'Kitchen', 'KitchenTableHigh':'Kitchen',
-                                'KitchenCounter1':'Kitchen', 'KitchenCounter2':'Kitchen', 'KitchenCounter3':'Kitchen',
-                                'KitchenDemo':'Kitchen',
-                                'ReceptionDesk':'Reception', 'HospActRec1':'Hospitality',
-                                'HospActRec4':'Hospitality', 'CorpActRec3':'Corporate', 'SuppActRec1': 'Support' }
+            return True
+        except:
+            print "no config file found in /human_activities/config/config.ini"
+            return False
+
+    def get_soma_rois(self):
+        """Find all the ROIs and restrict objects using membership.
+        """
+        soma_map = "collect_data_map_cleaned"
+        # soma_config = "test"
+        # query = {"map":soma_map, "config":soma_config}
+        all_rois = []
+        ret = self.soma_roi_store.query(SOMA2ROIObject._type)
+        for (roi, meta) in ret:
+            if roi.map_name != soma_map: continue
+            if roi.geotype != "Polygon": continue
+            all_rois.append(roi)
+        return all_rois
 
     def get_soma_objects(self):
         """srv call to mongo and get the list of new objects and locations"""
@@ -100,13 +100,20 @@ class Offline_ActivityLearning(object):
         """Query the database for the skeleton pose sequences"""
         query = {"date":self.date}
         print "query:", query
-        ret =  self._store_client.query(skeleton_complete._type, query)   # ret is a list of all queried msgs, returned as tuples. (msg, meta)
+        ret =  self._store_client.query(query, skeleton_complete._type)   # ret is a list of all queried msgs, returned as tuples. (msg, meta)
 
         # for (complete_skel_msg, meta) in ret:
             # do stuff
         return ret
 
     def get_events(self):
+        """
+        Encodes each skeleton detection into an Event() class
+        FILTERS run sequentially (all effect each other):
+         - Frame rate reduction applied first.
+         - Filter to qsrs last.
+        """
+
         print "\ngetting new Events"
         path = os.path.join(self.path, 'no_consent')
         for d_cnt, date in sorted(enumerate(os.listdir(path))):
@@ -118,15 +125,24 @@ class Offline_ActivityLearning(object):
             directory = os.path.join(path, date)
             for recording in os.listdir(directory):
                 if os.path.isdir(os.path.join(directory, recording)):
-                    region = "Kitchen"
-                    ce.get_event(recording, directory, self.soma_objects[region], self.reduce_frame_rate, self.joints_mean_window)
+
+                    # Can we reduce this list of objects using ROI information?
+                    try:
+                        use_objects = {}
+                        for region, objects in self.soma_objects.items():
+                            for ob, position in objects.items():
+                                use_objects[ob] = position
+
+                        ce.get_event(recording, directory, use_objects, self.config['events'])
+                    except:
+                        print "recording: %s in: %s is broken." %(recording, directory)
                 else:
                     print "already processed: %s" % recording
         print "done."
 
     def encode_qsrs(self, parallel=0):
         """check for any events which are not QSRs yet"""
-        print "\ncalculating new QSRs"
+        print "\ncalculating new QSRs: %s" % self.config['qsrs']['which_qsr']
 
         list_of_events = []
         for date in sorted(os.listdir(self.events_path)):
@@ -137,12 +153,12 @@ class Offline_ActivityLearning(object):
             path = os.path.join(self.events_path, date)
             print " >", date
             for recording in sorted(os.listdir(path)):
-                region = "Kitchen"   #todo: remove this region
+                # region = "Kitchen"   #todo: remove this region
                 if not os.path.isfile(os.path.join(self.qsr_path, recording)):
-                    list_of_events.append((recording, path, self.soma_objects[region], self.qsr_mean_window))
+                    list_of_events.append((recording, path, self.soma_objects.values(), self.config['qsrs']))
 
         if len(list_of_events) > 0:
-            if parallel:
+            if self.config['qsrs']['parallel']:
                 num_procs = mp.cpu_count()
                 pool = mp.Pool(num_procs)
                 chunk_size = int(np.ceil(len(list_of_events)/float(num_procs)))
@@ -162,7 +178,7 @@ class Offline_ActivityLearning(object):
         self.len_of_code_book = h.create_temp_histograms(self.qsr_path, self.accu_path)
         return True
 
-    def make_term_doc_matrix(self, parallel=0, low_instances=3):
+    def make_term_doc_matrix(self):
         """generate a term frequency matrix using the unique code words and the local histograms/graphlets"""
         print "\ngenerating term-frequency matrix:"
 
@@ -170,7 +186,7 @@ class Offline_ActivityLearning(object):
             len_of_code_book = self.len_of_code_book
         except AttributeError as e:
             print ">>> temp histogram method not run. exit()"
-            sys.exit(1)  # change this to serch for the longest histgoram in the directory :(
+            sys.exit(1)  # change this to serch for the longest histgoram in the directory ??
 
         list_of_histograms = []
         for d_cnt, date in sorted(enumerate(os.listdir(self.hist_path))):
@@ -179,7 +195,7 @@ class Offline_ActivityLearning(object):
             for recording in sorted(os.listdir(directory)):
                 list_of_histograms.append((recording, directory, len_of_code_book))
 
-        if parallel:
+        if self.config['hists']['parallel']:
             num_procs = mp.cpu_count()
             pool = mp.Pool(num_procs)
             chunk_size = int(np.ceil(len(list_of_histograms)/float(num_procs)))
@@ -199,27 +215,25 @@ class Offline_ActivityLearning(object):
 
         # features = np.vstack(results)
         features = np.vstack([hist for (uuid, hist) in results])
-        new_features = h.recreate_data_with_high_instance_graphlets(self.accu_path, features, low_instances)
+        new_features = h.recreate_data_with_high_instance_graphlets(self.accu_path, features, self.config['hists']['low_instances'])
         return True
 
-    def learn_activities(self, singular_val_threshold=2.0, assign_clstr=0.1):
+    def learn_activities(self):
         """run tf-idf and LSA on the term frequency matrix. """
         print "\nrunning tf-idf weighting, and LSA:"
 
         tf_idf_scores = tfidf.get_tf_idf_scores(self.accu_path)
-        U, Sigma, VT = tfidf.get_svd_learn_clusters(self.accu_path, tf_idf_scores, singular_val_threshold, assign_clstr)
+        U, Sigma, VT = tfidf.get_svd_learn_clusters(self.accu_path, tf_idf_scores, self.config['lsa']['singular_val_threshold'], self.config['lsa']['assign_clstr'])
         tfidf.dump_lsa_output(self.lsa_path, (U, Sigma, VT))
         print "number of LSA activities learnt: %s. left: %s. right:%s" % (len(Sigma), U.shape, VT.shape)
         print "LSA - done."
         return True
 
-
-    def learn_topic_model_activities(self, n_iters, create_images, dirichlet_params, class_threshold):
+    def learn_topic_model_activities(self):
         """learn a topic model using LDA. """
         print "\nLearning a topic model with LDA:"
 
-        n_topics = 10
-        doc_topic, topic_word = tm.run_topic_model(self.accu_path, n_iters, n_topics, create_images, dirichlet_params, class_threshold)
+        doc_topic, topic_word = tm.run_topic_model(self.accu_path, self.config['lda'])
 
         tm.dump_lda_output(self.lda_path, doc_topic, topic_word)
         print "Topic Modelling - done.\n"
@@ -230,23 +244,14 @@ if __name__ == "__main__":
     #rospy.init_node("Offline Activity Learner")
 
     rerun = 0
-    parallel = 1
-    singular_val_threshold = 10
-    assign_clstr = 0.01
 
-    low_instances = 5
-    n_iters = 1000
-    create_images = False
-    dirichlet_params = (0.5, 0.03)
-    class_threshold = 0.3
-
-    o = Offline_ActivityLearning(reduce_frame_rate=3, rerun_all=rerun)
+    o = Offline_ActivityLearning(rerun_all=rerun)
     o.get_soma_objects()
     o.get_events()
-    o.encode_qsrs(parallel)
+    o.encode_qsrs()
     o.make_temp_histograms_sequentially()
-    o.make_term_doc_matrix(parallel, low_instances)
-    o.learn_activities(singular_val_threshold, assign_clstr)
-    o.learn_topic_model_activities(n_iters, create_images, dirichlet_params, class_threshold  )
+    o.make_term_doc_matrix()
+    o.learn_activities()
+    o.learn_topic_model_activities()
 
     print "\n completed learning phase"

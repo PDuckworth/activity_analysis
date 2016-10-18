@@ -10,7 +10,7 @@ skeleton_publisher.py continuously logs data from the Openni2 Skeleton Tracker p
 
 It will log in `~/SkeltonDataset/no_consent/`: RGB and Depth images, along with estimated human pose sequence, the robots position, the date, time and a UUID, for each detected human.
 
-Note: There is a flag in main to log anonymous data only (i.e. no RGB data is logged to disc).
+Note: There is a flag in main to log anonymous data only (i.e. no RGB data is saved to disc).
 
 ```
 rosrun activity_data skeleton_publisher.py
@@ -32,6 +32,12 @@ rosrun record_skeleton_action skeleton_action.py
 rosrun actionlib axclient /record_skeletons
  ```
 
+Requires [shapely](https://pypi.python.org/pypi/Shapely) and [nav_goals_generator](https://github.com/strands-project/strands_navigation/tree/indigo-devel/nav_goals_generator):
+
+```
+sudo apt-get install python-shapely
+roslaunch nav_goals_generator nav_goals_generator.launch
+```
 
 consent_tsc
 ==============
@@ -56,5 +62,14 @@ To run:
 
  ```
 rosrun human_activities Learning_action.py
-rosrun actionlib axclient /LearningHumanActivities
+rosrun actionlib axclient /LearnHumanActivities
  ```
+
+Configuration File:
+
+`\activity_analysis\human_activities\config\config.ini`
+
+
+Requires: (LDA package)[https://pypi.python.org/pypi/lda]:
+
+`pip install lda`
