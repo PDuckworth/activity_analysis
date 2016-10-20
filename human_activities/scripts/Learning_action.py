@@ -4,26 +4,29 @@ import sys
 import rospy
 import actionlib
 from learn_activities import Offline_ActivityLearning
-from human_activities.msg import LearningAction, LearningResult
+from human_activities.msg import LearningActivitiesAction, LearningActivitiesResult
 
 class Learning_server(object):
     def __init__(self, name= "LearnHumanActivities"):
 
         # Start server
-        rospy.loginfo("Learning Human ACtivites action server")
+        rospy.loginfo("Learning Human Activites action server")
         self._action_name = name
-        self._as = actionlib.SimpleActionServer(self._action_name, LearningHumanActivitiesAction,
+        self._as = actionlib.SimpleActionServer(self._action_name, LearningActivitiesAction,
             execute_cb=self.execute, auto_start=False)
         self._as.start()
 
+        ol = Offline_ActivityLearning(rerun_all=0)
+        self.run_cnt = 0
 
     def execute(self, goal):
-        rerun = 1
+
+        self.run_cnt+=1
 
         while not self._as.is_preempt_requested():
-            ol = Offline_ActivityLearning(rerun_all=rerun)
+            ol.initialise_new_day(self.run_cnt)
 
-            """get SOMA2 Objects""""
+            """get SOMA2 Objects"""
             ol.get_soma_objects()
 
             """load skeleton detections over all frames"""
@@ -43,7 +46,7 @@ class Learning_server(object):
             """learn a topic model of activity classes"""
             ol.learn_topic_model_activities()
 
-            print "\n completed learning phase"
+            rospy.loginfo("completed learning phase")
         self._as.set_succeeded(LearningResult())
 
 
