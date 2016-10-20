@@ -25,10 +25,11 @@ import human_activities.topic_model as tm
 
 class Offline_ActivityLearning(object):
 
-    def __init__(self, soma_map="", soma_conf="", rerun_all=0, reduce_frame_rate=2, joints_mean_window=5, qsr_mean_window=3):
+    def __init__(self, soma_map="", soma_conf="", rerun_all=0):
         print "initialise activity learning action class"
 
-        self.load_config()
+        self.load_config()  # loads all the learning parameters from a config file
+        self.make_filepaths()  # Define all file paths
 
         self.path = '/home/' + getpass.getuser() + '/SkeletonDataset/'
         self.date = str(datetime.datetime.now().date())
@@ -40,18 +41,6 @@ class Offline_ActivityLearning(object):
         self.query = {} #"number_of_detections":100}
         self.soma_map = soma_map
         self.soma_conf = soma_conf
-
-        """Define all filepaths here"""
-        self.events_path = os.path.join(self.path, 'Learning', 'Events')
-        self.qsr_path = os.path.join(self.path, 'Learning', 'QSR_Worlds')
-        self.hist_path = os.path.join(self.path, 'Learning', 'Histograms')
-        self.accu_path = os.path.join(self.path, 'Learning', 'accumulate_data', self.date)
-        if not os.path.isdir(self.accu_path): os.system('mkdir -p ' + self.accu_path)
-
-        self.lsa_path = os.path.join(self.accu_path, "LSA")
-        if not os.path.exists(self.lsa_path): os.makedirs(self.lsa_path)
-        self.lda_path = os.path.join(self.accu_path, "LDA")
-        if not os.path.exists(self.lda_path): os.makedirs(self.lda_path)
 
         """If you want to rerun all the learning each time (not necessary)"""
         if rerun_all:
@@ -71,6 +60,18 @@ class Offline_ActivityLearning(object):
         except:
             print "no config file found in /human_activities/config/config.ini"
             return False
+
+    def make_filepaths(self):
+        self.events_path = os.path.join(self.path, 'Learning', 'Events')
+        self.qsr_path = os.path.join(self.path, 'Learning', 'QSR_Worlds')
+        self.hist_path = os.path.join(self.path, 'Learning', 'Histograms')
+        self.accu_path = os.path.join(self.path, 'Learning', 'accumulate_data', self.date)
+        if not os.path.isdir(self.accu_path): os.system('mkdir -p ' + self.accu_path)
+
+        self.lsa_path = os.path.join(self.accu_path, "LSA")
+        if not os.path.exists(self.lsa_path): os.makedirs(self.lsa_path)
+        self.lda_path = os.path.join(self.accu_path, "LDA")
+        if not os.path.exists(self.lda_path): os.makedirs(self.lda_path)
 
     def get_soma_rois(self):
         """Find all the ROIs and restrict objects using membership.
