@@ -160,7 +160,6 @@ class SkeletonManagerConsent(object):
                 #cv2.imwrite(d+'rgb_sk/sk_'+f_str+'.jpg', self.accumulate_rgb_sk_images[uuid][f])
                 cv2.imwrite(d+'depth/depth_'+f_str+'.jpg', self.accumulate_depth_images[uuid][f])
 
-
                 # get robot data
                 rob_incr_msg = self.accumulate_robot[uuid][f]
                 x=float(rob_incr_msg.robot_pose.position.x)

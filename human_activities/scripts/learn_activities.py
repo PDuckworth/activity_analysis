@@ -219,7 +219,7 @@ class Offline_ActivityLearning(object):
         new_features = h.recreate_data_with_high_instance_graphlets(self.accu_path, features, self.config['hists']['low_instances'])
         return True
 
-    def learn_activities(self):
+    def learn_lsa_activities(self):
         """run tf-idf and LSA on the term frequency matrix. """
         print "\nrunning tf-idf weighting, and LSA:"
 
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     o.encode_qsrs()
     o.make_temp_histograms_sequentially()
     o.make_term_doc_matrix()
-    o.learn_activities()
+    o.learn_lsa_activities()
     o.learn_topic_model_activities()
 
     print "\n completed learning phase"

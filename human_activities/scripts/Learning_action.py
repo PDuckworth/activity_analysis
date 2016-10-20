@@ -38,7 +38,7 @@ class Learning_server(object):
             ol.make_term_doc_matrix()
 
             """create tf-idf and LSA classes"""
-            ol.learn_activities()
+            ol.learn_lsa_activities()
 
             """learn a topic model of activity classes"""
             ol.learn_topic_model_activities()

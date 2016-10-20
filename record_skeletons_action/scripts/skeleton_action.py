@@ -64,6 +64,7 @@ class skeleton_server(object):
         rospy.loginfo("Done")
 
         # PTU client
+        self.ptu_height = 1.70 # assume camera is 1.7m
         self.ptu_client = actionlib.SimpleActionClient('SetPTUState', PtuGotoAction)
         rospy.loginfo("Wait for PTU action server")
         self.ptu_client.wait_for_server(rospy.Duration(60))
@@ -84,8 +85,8 @@ class skeleton_server(object):
         self.speak()
 
         # auto select viewpoint for recording
-        self.view_dist_thresh_low = 2.5
-        self.view_dist_thresh_high = 3.5
+        self.view_dist_thresh_low = 1.5
+        self.view_dist_thresh_high = 2.5
         self.possible_nav_goals = []
 
         # visualizing the view point goal in RVIZ
@@ -154,7 +155,7 @@ class skeleton_server(object):
 
         # LOG THE STATS TO MONGO
         res = (request_consent, consent_msg)
-        self.log_view_info(res, nav_succ, goal.waypoint, start, end)
+        self.log_view_info(res, nav_fail, goal.waypoint, start, end)
 
         # reset everything:
         self.reset_everything()
@@ -193,9 +194,9 @@ class skeleton_server(object):
         (request_consent, consent_msg) = res
         vinfo.success = False
         if consent_msg == "everything": vinfo.success = True
-        
+
         vinfo.soma_objs = [self.selected_object, repr(self.selected_object_pose)]
-        rospy.loginfo("logged view stats: nav:%s, record:%s, consent:%s." % (vinfo.nav_failure, bool(request_consent), vinfo.success)) 
+        rospy.loginfo("logged view stats: nav:%s, record:%s, consent:%s." % (vinfo.nav_failure, bool(request_consent), vinfo.success))
         self.views_msg_store.insert(vinfo)
 
 
@@ -208,21 +209,21 @@ class skeleton_server(object):
         ret = self.views_msg_store.query(ViewInfo._type)
         for view,meta in ret:
             print ">>", view.soma_objs[0], view.soma_objs[1].position
-        
-        
-    
+
+
+
     def goto(self):
         """
         Given a viewpoint - send the robot there, and fix the PTU angle
-        returns: Nav_Failure.
+        returns: Nav_Failure stats.
         """
         inds = range(len(self.possible_poses))
         random.shuffle(inds)
-        
+
         # add one more possible pose - for the waypoint pose
-        inds.append(len(self.possible_poses)) 
+        inds.append(len(self.possible_poses))
         self.possible_poses.append(self.robot_pose)
-		
+
         for cnt, ind in enumerate(inds):
             """For all possible viewpoints, try to go to one - if fails, loop."""
 
@@ -251,7 +252,14 @@ class skeleton_server(object):
                 continue
             else:
                 rospy.loginfo("Reached nav goal: %s" % str(res.outcome))
-                self.set_ptu_state()
+
+                obj = self.selected_object_pose
+                dist_z = abs(self.ptu_height - obj.position.z)
+                p = self.possible_poses[ind]
+                dist = abs(math.hypot((p.position.x - obj.position.x), (p.position.y - obj.position.y)))
+                ptu_tilt = math.degrees(math.atan2(dist_z, dist))
+                rospy.loginfo("ptu: 175, ptu tilt: %s" % ptu_tilt
+                self.set_ptu_state(pan=175, `tilt=ptu_tilt)
                 return False
 
         """IF NO VIEWS work (even the waypoint?)- try looking on mongo for one that has previously worked"""
@@ -279,25 +287,29 @@ class skeleton_server(object):
             dist = abs(math.hypot(x_dist, y_dist))
             if dist > self.view_dist_thresh_low:
                 if self.roi_polygon.contains(Point([p.position.x, p.position.y])):
-                    yaw = math.atan2(y_dist, x_dist)
-                    p = self.add_quarternion(p, yaw)
-                    poses.append(p)                    
-                    #yaws.append(yaw)
-                    #dists.append( (x_dist, y_dist) )
+                    # yaw = math.atan2(y_dist, x_dist)
+                    p = self.add_quarternion(p, x_dist, y_dist)
+                    poses.append(p)
+                    # yaws.append(yaw)
+                    # dists.append( (x_dist, y_dist) )
 
         view_goals.poses = poses
         self.pub_all_views.publish(view_goals)
         self.possible_poses = poses
         # self.possible_yaws = yaws
 
-        # calculate the view from the waypoint - as a back up
+        # add the viewpoint from the waypoint - as a back up if all others fail
         x_dist = self.robot_pose.position.x - obj.position.x
         y_dist = self.robot_pose.position.y - obj.position.y
         dist = abs(math.hypot(x_dist, y_dist))
-        self.robot_pose = self.add_quarternion(self.robot_pose, math.atan2(y_dist, x_dist))
+        self.robot_pose = self.add_quarternion(self.robot_pose, x_dist, y_dist)
 
-    def add_quarternion(self, pose, yaw):
+    def add_quarternion(self, pose, x_dist, y_dist):
+        """Calculate the robots orientation given a point
+        """
         roll = pitch = 0
+        yaw = math.atan2(y_dist, x_dist)
+
         quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
         pose.orientation.x = quaternion[0]
         pose.orientation.y = quaternion[1]
@@ -434,8 +446,8 @@ class skeleton_server(object):
 
 
     def upload_images_to_mongo(self, uuid):
-        """Send one RGB image to mongodb to be used by the webserver, 
-        to ask for consent on the main PCs screen. 
+        """Send one RGB image to mongodb to be used by the webserver,
+        to ask for consent on the main PCs screen.
         """
         rgb = self.sk_publisher.rgb_msg
         #rgb_sk = self.sk_publisher.rgb_sk_msg
@@ -467,14 +479,6 @@ class skeleton_server(object):
         # tell the webserver to go back to the main page - if no consent was requested
         main_webpage_return()
 
-    # def load_config(self):
-        # self.filepath = os.path.join(roslib.packages.get_pkg_dir("record_skeletons_action"), "config")
-        # try:
-            # self.config = yaml.load(open(os.path.join(self.filepath, 'config.ini'), 'r'))
-            # print "config file loaded", self.config.keys()
-        # except:
-            # print "no config file found"
-
     def reset_ptu(self):
         ptu_goal = PtuGotoGoal();
         ptu_goal.pan = 0
@@ -490,17 +494,11 @@ class skeleton_server(object):
         self.selected_pose = None
         self.possible_nav_goals = []
 
-    def set_ptu_state(self, waypoint=None):
+    def set_ptu_state(self, pan=175, tilt=10):
         ptu_goal = PtuGotoGoal();
 
-        # try:
-        #     ptu_goal.pan = self.config[waypoint]['pan']
-        #     ptu_goal.tilt = self.config[waypoint]['tilt']
-        #     ptu_goal.pan_vel = self.config[waypoint]['pvel']
-        #     ptu_goal.tilt_vel = self.config[waypoint]['tvel']
-        # except:
-        ptu_goal.pan = 175
-        ptu_goal.tilt = 10
+        ptu_goal.pan = pan
+        ptu_goal.tilt = tilt
         ptu_goal.pan_vel = 30
         ptu_goal.tilt_vel = 30
 
