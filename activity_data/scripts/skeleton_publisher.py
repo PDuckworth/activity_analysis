@@ -33,7 +33,7 @@ class SkeletonManager(object):
 
         self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
         self.soma_config = rospy.get_param("~soma_config", "test")
-        
+
         self.map_info = "don't know"  # topological map name
         self.current_node = "don't care"  # topological node waypoint
         self.robot_pose = Pose()   # pose of the robot
@@ -153,7 +153,7 @@ class SkeletonManager(object):
         robot_msg =  self.accumulate_robot[uuid][0]
         first_map_point = self.convert_to_world_frame(first_pose, robot_msg)
 
-        vis=True
+        vis=False
         if vis:
             print ">>>"
             print "storing: ", uuid, type(uuid)
@@ -205,7 +205,6 @@ class SkeletonManager(object):
             # print "new", new_dir
 
             if not os.path.exists(new_dir):
-                np.savetxt(new_dir + '/meta.txt', self.roi)
                 os.makedirs(new_dir)
                 os.makedirs(new_dir+'/depth')
                 os.makedirs(new_dir+'/robot')
@@ -276,6 +275,12 @@ class SkeletonManager(object):
             f1.write('ptu_pan:'+str(pan)+'\n')
             f1.write('ptu_tilt:'+str(tilt)+'\n')
             f1.close()
+
+            #save the SOMA roi to file
+            if self.restrict_to_rois:
+                f1 = open(d+'/meta.txt','w')
+                f1.write('robot_roi: %s' % self.roi)
+                f1.close()
 
             # save skeleton data in bag file
             #x=float(self.robot_pose.position.x)
