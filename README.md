@@ -10,8 +10,6 @@ skeleton_publisher.py continuously logs data from the Openni2 Skeleton Tracker p
 
 It will log in `~/SkeltonDataset/no_consent/`: RGB and Depth images, along with estimated human pose sequence, the robots position, the date, time and a UUID, for each detected human.
 
-Note: There is a flag in main to log anonymous data only (i.e. no RGB data is saved to disc).
-
 ```
 rosrun activity_data skeleton_publisher.py
 ```
@@ -20,7 +18,7 @@ Recommended to use the launch file:
 
 ```
 roslaunch activity_data record_data.launch
-roslaunch activity_data record_data.launch log_to_mongo:=True max_frames:=1000 anonymous:=False X:=2 Y:=3
+roslaunch activity_data record_data.launch log_to_mongo:=True max_frames:=1000 rec_rgb:=True X:=2 Y:=3
 ```
 This uses `topic_tools drop` to reduce the rate of messages received on `/skeleton_data/incremental_reduced` to 10Hz, as per [here](http://wiki.ros.org/topic_tools/drop)
 

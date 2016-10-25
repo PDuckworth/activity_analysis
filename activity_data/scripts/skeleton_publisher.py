@@ -21,9 +21,11 @@ from tf.transformations import euler_from_quaternion
 class SkeletonManager(object):
     """To deal with Skeleton messages once they are published as incremental msgs by OpenNI2."""
 
-    def __init__(self, record_rgb=False):
+    def __init__(self):
 
-        self.record_rgb = record_rgb # to deal with the anonymous setting at tsc
+        self.record_rgb = rospy.get_param("~rec_rgb", True)
+        print "recording RGB images: %s" % self.record_rgb # to deal with the anonymous setting at tsc
+
         self.accumulate_data = {} # accumulates multiple skeleton msg
         self.accumulate_robot = {} # accumulates multiple skeleton msg
         self.sk_mapping = {} # does something in for the image logging
@@ -124,7 +126,6 @@ class SkeletonManager(object):
         st = self.accumulate_data[uuid][0].time
         en = self.accumulate_data[uuid][-1].time
         # print ">>", self.accumulate_data[uuid][0].joints[0].pose
-
 
         first_pose = self.accumulate_data[uuid][0].joints[0].pose.position
         robot_msg =  self.accumulate_robot[uuid][0]
@@ -375,8 +376,5 @@ class SkeletonManager(object):
 if __name__ == '__main__':
     rospy.init_node('skeleton_publisher', anonymous=True)
 
-    record_rgb = rospy.get_param("~anonymous", True)
-    print "recording RGB images: %s" % record_rgb
-
-    sk_manager = SkeletonManager(record_rgb)
+    sk_manager = SkeletonManager()
     rospy.spin()
