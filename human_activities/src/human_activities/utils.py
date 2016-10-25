@@ -17,13 +17,17 @@ def save_event(e, loc=None):
 
     if not os.path.isdir(new_path):
         os.system('mkdir -p ' + new_path)
-    f = open(os.path.join(new_path, p[-1] +".p"), "w")
+
+    file_name = p[-1]
+    if e.label != "NA":
+        file_name += p[-1] + "_" + repr(e.start_frame) + "_" + repr(e.end_frame)
+
+    f = open(os.path.join(new_path, file_name +".p"), "w")
     pickle.dump(e, f, 2)
     f.close()
 
 def load_e(directory, event_file):
     """Loads an event file along with exception raise msgs"""
-
     try:
         file = directory + "/" + event_file
         with open(file, 'r') as f:
@@ -35,18 +39,22 @@ def load_e(directory, event_file):
         return None
 
 
-def load_all_learning_files(accu_path):
-    # print "loading files..."
-
+def load_learning_files(accu_path):
     with open(accu_path + "/code_book.p", 'r') as f:
         code_book = pickle.load(f)
-
     with open(accu_path + "/graphlets.p", 'r') as f:
         graphlets = pickle.load(f)
-
     with open(accu_path + "/feature_space.p", 'r') as f:
         data = pickle.load(f)
+    return code_book, graphlets, data
 
+def load_learning_files_all(accu_path):
+    with open(accu_path + "/code_book_all.p", 'r') as f:
+        code_book = pickle.load(f)
+    with open(accu_path + "/graphlets_all.p", 'r') as f:
+        graphlets = pickle.load(f)
+    with open(accu_path + "/feature_space.p", 'r') as f:
+        data = pickle.load(f)
     return code_book, graphlets, data
 
 

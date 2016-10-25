@@ -19,12 +19,15 @@ from qsrlib_io.world_trace import Object_State, World_Trace
 
 class event(object):
     """Event object class"""
-    def __init__(self, uuid=None, dir_=None, waypoint=None):
+    def __init__(self, uuid, dir_, start, end, label, waypoint=None):
 
         self.uuid = uuid
         # self.start_frame, self.end_frame = self.get_last_frame()
         # self.waypoint = waypoint
         self.dir = dir_
+        self.start_frame = start
+        self.end_frame = end
+        self.label = label
 
         self.sorted_timestamps = []
         self.sorted_ros_timestamps = []
@@ -80,8 +83,8 @@ class event(object):
                 y = f_data[joint_id]["y"][cnt]
                 z = f_data[joint_id]["z"][cnt]
 
-                 # add the x2d and y2d (using filtered x,y,z data)
-                 # print self.uuid, t, joint_id, (x,y,z)
+                # add the x2d and y2d (using filtered x,y,z data)
+                # print self.uuid, t, joint_id, (x,y,z)
                 try:
                     x2d = int(x*fx/z*1 +cx);
                     y2d = int(y*fy/z*-1+cy);
@@ -181,6 +184,21 @@ class event(object):
         self.map_world = world
 
 
+def get_labels(d1, d_sk):
+    labels = {}
+    if os.path.isfile(os.path.join(d1, 'labels.txt')):
+        f1 = open(os.path.join(d1, 'labels.txt'), 'r')
+        for count, line in enumerate(f1):
+            line_ = line.split('\n')[0].split(':')
+            activity_class = line_[1]
+            if activity_class != 'making_tea':
+                start, end = line_[2].split(',')
+                labels[count] = (activity_class, int(start), int(end))
+    else:
+        number_of_frames = len([1 for f in os.listdir(d_sk) ])
+        labels[0] = ("NA", int(10), int(number_of_frames-10))
+    return labels
+
 def get_event(recording, path, soma_objects, config):
     """create event class from a recording"""
 
@@ -189,179 +207,239 @@ def get_event(recording, path, soma_objects, config):
     d_sk = os.path.join(d1, 'skeleton/')
     d_robot = os.path.join(d1, 'robot/')
 
-    """information stored in the filename"""
-
     try:
+        """information stored in the filename"""
         uuid = recording.split('_')[-1]
         date = recording.split('_')[0]
         time = recording.split('_')[1]
     except:
          print "recording not found"
          return
-    # print uuid, date, time
-
     print "date: %s. uid: %s. time: %s." % (date, uuid, time)
 
-    """initialise event"""
-    e = event(uuid, d1)
+    labels = get_labels(d1, d_sk)
 
-    """get the skeleton data from each timepoint file"""
-    sk_files = [f for f in os.listdir(d_sk) if os.path.isfile(os.path.join(d_sk, f))]
+    for iter, (label, st, end) in labels.items():
+        # print iter
+        """initialise event"""
+        e = event(uuid, d1, st, end, label)
 
-    """reduce the number of frames by a rate. Re-number from 1."""
-    frame = 1
-    for file in sorted(sk_files):
-        original_frame = int(file.split('.')[0].split('_')[1])
-        if original_frame % config['reduce_frame_rate'] != 0: continue
+        """get the skeleton data from each timepoint file"""
+        sk_files = [f for f in os.listdir(d_sk) if os.path.isfile(os.path.join(d_sk, f))]
 
-        e.skeleton_data[frame] = {}
-        e.sorted_timestamps.append(frame)
+        """reduce the number of frames by a rate. Re-number from 1."""
+        frame = 1
+        for file in sorted(sk_files):
+            original_frame = int(file.split('.')[0].split('_')[1])
+            if original_frame < int(st) or original_frame > int(end): continue
 
-        f1 = open(d_sk+file,'r')
-        for count,line in enumerate(f1):
-            if count == 0:
-                t = line.split(':')[1].split('\n')[0]
-                e.sorted_ros_timestamps.append(np.float64(t))
+            if original_frame % config['reduce_frame_rate'] != 0: continue
 
-            # read the joint name
-            elif (count-1)%11 == 0:
-                j = line.split('\n')[0]
-                e.skeleton_data[frame][j] = []
-            # read the x value
-            elif (count-1)%11 == 2:
-                a = float(line.split('\n')[0].split(':')[1])
-                e.skeleton_data[frame][j].append(a)
-            # read the y value
-            elif (count-1)%11 == 3:
-                a = float(line.split('\n')[0].split(':')[1])
-                e.skeleton_data[frame][j].append(a)
-            # read the z value
-            elif (count-1)%11 == 4:
-                a = float(line.split('\n')[0].split(':')[1])
-                e.skeleton_data[frame][j].append(a)
+            e.skeleton_data[frame] = {}
+            e.sorted_timestamps.append(frame)
+            f1 = open(d_sk+file,'r')
 
-        frame+=1
-    # for frame, data in  e.skeleton_data.items():
-        # print frame, data['head']
-    # sys.exit(1)
+            # do the Skeleon Tracking pose estimates include confidence values on each joint
+            if config['rec_inc_confidence_vals']:
+                for count,line in enumerate(f1):
+                    if count == 0:
+                        t = line.split(':')[1].split('\n')[0]
+                        e.sorted_ros_timestamps.append(np.float64(t))
 
-    """ apply a skeleton data filter and create a QSRLib.World_Trace object"""
-    # e.apply_mean_filter(window_length=config['joints_mean_window'])
-    e.apply_median_filter(config['joints_mean_window'])
+                    # read the joint name
+                    elif (count-1)%11 == 0:
+                        j = line.split('\n')[0]
+                        e.skeleton_data[frame][j] = []
+                    # read the x value
+                    elif (count-1)%11 == 2:
+                        a = float(line.split('\n')[0].split(':')[1])
+                        e.skeleton_data[frame][j].append(a)
+                    # read the y value
+                    elif (count-1)%11 == 3:
+                        a = float(line.split('\n')[0].split(':')[1])
+                        e.skeleton_data[frame][j].append(a)
+                    # read the z value
+                    elif (count-1)%11 == 4:
+                        a = float(line.split('\n')[0].split(':')[1])
+                        e.skeleton_data[frame][j].append(a)
+            else:
+                for count,line in enumerate(f1):
+                    if count == 0:
+                        t = line.split(':')[1].split('\n')[0]
+                        e.sorted_ros_timestamps.append(np.float64(t))
 
-    """ read robot odom data"""
-    r_files = [f for f in os.listdir(d_robot) if os.path.isfile(os.path.join(d_robot, f))]
-    for file in sorted(r_files):
-        frame = int(file.split('.')[0].split('_')[1])
-        e.robot_data[frame] = [[],[]]
-        f1 = open(d_robot+file,'r')
-        for count,line in enumerate(f1):
-            if count == 1:# read the x value
-                a = float(line.split('\n')[0].split(':')[1])
-                e.robot_data[frame][0].append(a)
-            elif count == 2:# read the y value
-                a = float(line.split('\n')[0].split(':')[1])
-                e.robot_data[frame][0].append(a)
-            elif count == 3:# read the z value
-                a = float(line.split('\n')[0].split(':')[1])
-                e.robot_data[frame][0].append(a)
-            elif count == 5:# read roll pitch yaw
-                ax = float(line.split('\n')[0].split(':')[1])
-            elif count == 6:
-                ay = float(line.split('\n')[0].split(':')[1])
-            elif count == 7:
-                az = float(line.split('\n')[0].split(':')[1])
-            elif count == 8:
-                aw = float(line.split('\n')[0].split(':')[1])
-            elif count == 10:
-                pan = float(line.split('\n')[0].split(':')[1])
-            elif count == 11:
-                tilt = float(line.split('\n')[0].split(':')[1])
+                    # read the joint name
+                    elif (count-1)%10 == 0:
+                        j = line.split('\n')[0]
+                        e.skeleton_data[frame][j] = []
+                    # read the x value
+                    elif (count-1)%10 == 2:
+                        a = float(line.split('\n')[0].split(':')[1])
+                        e.skeleton_data[frame][j].append(a)
+                    # read the y value
+                    elif (count-1)%10 == 3:
+                        a = float(line.split('\n')[0].split(':')[1])
+                        e.skeleton_data[frame][j].append(a)
+                    # read the z value
+                    elif (count-1)%10 == 4:
+                        a = float(line.split('\n')[0].split(':')[1])
+                        e.skeleton_data[frame][j].append(a)
+            frame+=1
+        # for frame, data in  e.skeleton_data.items():
+            # print frame, data['head']
+        # sys.exit(1)
 
-                # ax,ay,az,aw
-                roll, pitch, yaw = euler_from_quaternion([ax, ay, az, aw])    #odom
-                #print ">", roll, pitch, yaw
-                yaw += pan #*math.pi / 180.                   # this adds the pan of the ptu state when recording took place.
-                pitch += tilt #*math.pi / 180.                # this adds the tilt of the ptu state when recording took place.
-                e.robot_data[frame][1] = [roll,pitch,yaw]
+        """ apply a skeleton data filter and create a QSRLib.World_Trace object"""
+        # e.apply_mean_filter(window_length=config['joints_mean_window'])
+        e.apply_median_filter(config['joints_mean_window'])
 
-    # add the map frame data for the skeleton detection
-    for frame in e.sorted_timestamps:
-        """Note frame does not start from 0. It is the actual file frame number"""
+        """ read robot odom data"""
+        r_files = [f for f in os.listdir(d_robot) if os.path.isfile(os.path.join(d_robot, f))]
+        frame = 1
+        for file in sorted(r_files):
+            original_frame = int(file.split('.')[0].split('_')[1])
+            if original_frame % config['reduce_frame_rate'] != 0: continue
 
-        e.map_frame_data[frame] = {}
-        xr, yr, zr = e.robot_data[frame][0]
-        yawr = e.robot_data[frame][1][2]
-        pr = e.robot_data[frame][1][1]
+            e.robot_data[frame] = [[],[]]
+            f1 = open(d_robot+file,'r')
+            for count, line in enumerate(f1):
+                # print count, line, config['ptu_vals_stored']
 
-        #  because the Nite tracker has z as depth, height as y and left/right as x
-        #  we translate this to the map frame with x, y and z as height.
-        for joint, (y,z,x,x2d,y2d) in e.filtered_skeleton_data[frame].items():
-            # transformation from camera to map
-            rot_y = np.matrix([[np.cos(pr), 0, np.sin(pr)], [0, 1, 0], [-np.sin(pr), 0, np.cos(pr)]])
-            rot_z = np.matrix([[np.cos(yawr), -np.sin(yawr), 0], [np.sin(yawr), np.cos(yawr), 0], [0, 0, 1]])
-            rot = rot_z*rot_y
+                if count == 1:# read the x value
+                    a = float(line.split('\n')[0].split(':')[1])
+                    e.robot_data[frame][0].append(a)
+                elif count == 2:# read the y value
+                    a = float(line.split('\n')[0].split(':')[1])
+                    e.robot_data[frame][0].append(a)
+                elif count == 3:# read the z value
+                    a = float(line.split('\n')[0].split(':')[1])
+                    e.robot_data[frame][0].append(a)
+                elif count == 5:# read roll pitch yaw
+                    ax = float(line.split('\n')[0].split(':')[1])
+                elif count == 6:
+                    ay = float(line.split('\n')[0].split(':')[1])
+                elif count == 7:
+                    az = float(line.split('\n')[0].split(':')[1])
+                elif count == 8:
+                    aw = float(line.split('\n')[0].split(':')[1])
 
-            pos_r = np.matrix([[xr], [yr], [zr+1.66]]) # robot's position in map frame
-            pos_p = np.matrix([[x], [-y], [-z]]) # person's position in camera frame
+                    if not config['ptu_vals_stored']:
+                        roll, pitch, yaw = euler_from_quaternion([ax, ay, az, aw])    #odom
+                        pitch = 10*math.pi / 180.   #we pointed the pan tilt 10 degrees
+                        e.robot_data[frame][1] = [roll,pitch,yaw]
 
-            map_pos = rot*pos_p+pos_r # person's position in map frame
-            x_mf = map_pos[0,0]
-            y_mf = map_pos[1,0]
-            z_mf = map_pos[2,0]
+                elif count > 8 and config['ptu_vals_stored']:
 
-            j = (x_mf, y_mf, z_mf)
-            e.map_frame_data[frame][joint] = j
+                    if count == 10:
+                        pan = float(line.split('\n')[0].split(':')[1])
+                    elif count == 11:
+                        tilt = float(line.split('\n')[0].split(':')[1])
+                        roll, pitch, yaw = euler_from_quaternion([ax, ay, az, aw])    #odom
+                        yaw += pan #*math.pi / 180.                   # this adds the pan of the ptu state when recording took place.
+                        pitch += tilt #*math.pi / 180.                # this adds the tilt of the ptu state when recording took place.
+                        e.robot_data[frame][1] = [roll,pitch,yaw]
+            frame+=1
 
-    # for i in e.sorted_timestamps:
-    #     print i, e.map_frame_data[i]['head'], e.map_frame_data[i]['left_hand']#, e.map_frame_data[i]['right_hand'] #e.skeleton_data[i]['right_hand'], e.map_frame_data[i]['right_hand']   , yaw, pitch
-    # sys.exit(1)
+        # add the map frame data for the skeleton detection
+        for frame in e.sorted_timestamps:
+            """Note frame does not start from 0. It is the actual file frame number"""
+            e.map_frame_data[frame] = {}
+            xr, yr, zr = e.robot_data[frame][0]
+            yawr = e.robot_data[frame][1][2]
+            pr = e.robot_data[frame][1][1]
 
-    e.get_world_frame_trace(soma_objects)
-    utils.save_event(e, "Learning/Events")
+            #  because the Nite tracker has z as depth, height as y and left/right as x
+            #  we translate this to the map frame with x, y and z as height.
+            for joint, (y,z,x,x2d,y2d) in e.filtered_skeleton_data[frame].items():
+                # transformation from camera to map
+                rot_y = np.matrix([[np.cos(pr), 0, np.sin(pr)], [0, 1, 0], [-np.sin(pr), 0, np.cos(pr)]])
+                rot_z = np.matrix([[np.cos(yawr), -np.sin(yawr), 0], [np.sin(yawr), np.cos(yawr), 0], [0, 0, 1]])
+                rot = rot_z*rot_y
+
+                pos_r = np.matrix([[xr], [yr], [zr+1.66]]) # robot's position in map frame
+                pos_p = np.matrix([[x], [-y], [-z]]) # person's position in camera frame
+
+                map_pos = rot*pos_p+pos_r # person's position in map frame
+                x_mf = map_pos[0,0]
+                y_mf = map_pos[1,0]
+                z_mf = map_pos[2,0]
+
+                j = (x_mf, y_mf, z_mf)
+                e.map_frame_data[frame][joint] = j
+
+        # for i in e.sorted_timestamps:
+        #     print i, e.map_frame_data[i]['head'], e.map_frame_data[i]['left_hand']#, e.map_frame_data[i]['right_hand'] #e.skeleton_data[i]['right_hand'], e.map_frame_data[i]['right_hand']   , yaw, pitch
+        # sys.exit(1)
+
+        e.get_world_frame_trace(soma_objects)
+        utils.save_event(e, "Learning/Events")
 
 
 def get_soma_objects():
-    #todo: read from soma2 mongo store.
-
-    """TSC OBJECTS"""
     objects = {}
     objects['Kitchen'] = {}
-    objects['Reception'] = {}
-    objects['Hopotality'] = {}
-    objects['Corporate'] = {}
-    objects['Support'] = {}
+    objects['Long_room'] = {}
+    objects['Robot_lab'] = {}
+    objects['Staff_Room'] = {}
 
+    # kitchen
     objects['Kitchen'] = {
-    #'Microwave_1':  (-53.894511011092348, -5.6271549435167918, 1.2075203138621333),
-    'Microwave_2':  (-52.29, -5.6271549435167918, 1.2075203138621333),
-    'Sink_2':  (-55.902430164089097, -5.3220418631789883, 0.95348616325025226),
-    'Fruit_bowl_3':  (-55.081272358597374, -8.5550720977828973, 1.2597648941515749),
-    #'Fruit_bowl_11':  (-8.957, -17.511, 1.1),
-    'Dishwasher_4':  (-55.313495480985964, -5.822285141172836, 0.87860846828010275),
-    'Coffee_Machine_5': (-50.017233832554183, -5.4918825204775921, 1.3139597647929069)
+    'Printer_console_11': (-8.957, -17.511, 1.1),                           # fixed
+    'Printer_paper_tray_110': (-9.420, -18.413, 1.132),                     # fixed
+    'Microwave_3': (-4.835, -15.812, 1.0),                                  # fixed
+    'Kettle_32': (-2.511, -15.724, 1.41),                                   # fixed
+    'Tea_Pot_47': (-3.855, -15.957, 1.0),                                   # fixed
+    'Water_Cooler_33': (-4.703, -15.558, 1.132),                            # fixed
+    'Waste_Bin_24': (-1.982, -16.681, 0.91),                                # fixed
+    'Waste_Bin_27': (-1.7636072635650635, -17.074087142944336, 0.5),
+    'Sink_28': (-2.754, -15.645, 1.046),                                    # fixed
+    'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
+    'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
+    'Double_doors_112': (-8.365, -18.440, 1.021)
     }
-
-    objects['Reception'] = {
-    'Coffee_Machine_6': (-5.5159040452346737, 28.564135219405774, 1.3149322505645362),
-    #'Fridge_7': (-50.35, -5.24, 1.51)
-    }
-
-    objects['Hospitality'] = {
-    'Printer_8':  (-1.6876578896088092, -5.9433505603441326, 1.1084470787101761),
-    'Sink_9':  (2.9, -3.0, 1.1),
-    #'Coffee_Machine_10': (-50.35, -5.24, 1.51)
-    }
-
-    objects['Corporate'] = {
-    'Printer_11':  (-23.734682053245283, -14.096880839756942, 1.106873440473277),
-    }
-
-    objects['Support'] = {
-    #'Printer_1 2':  (-8.957, -17.511, 1.1),
-    }
-
     return objects
+#
+# def get_soma_objects():
+#     #todo: read from soma2 mongo store.
+#
+#     """TSC OBJECTS"""
+#     objects = {}
+#     objects['Kitchen'] = {}
+#     objects['Reception'] = {}
+#     objects['Hopotality'] = {}
+#     objects['Corporate'] = {}
+#     objects['Support'] = {}
+#
+#     objects['Kitchen'] = {
+#     #'Microwave_1':  (-53.894511011092348, -5.6271549435167918, 1.2075203138621333),
+#     'Microwave_2':  (-52.29, -5.6271549435167918, 1.2075203138621333),
+#     'Sink_2':  (-55.902430164089097, -5.3220418631789883, 0.95348616325025226),
+#     'Fruit_bowl_3':  (-55.081272358597374, -8.5550720977828973, 1.2597648941515749),
+#     #'Fruit_bowl_11':  (-8.957, -17.511, 1.1),
+#     'Dishwasher_4':  (-55.313495480985964, -5.822285141172836, 0.87860846828010275),
+#     'Coffee_Machine_5': (-50.017233832554183, -5.4918825204775921, 1.3139597647929069)
+#     }
+#
+#     objects['Reception'] = {
+#     'Coffee_Machine_6': (-5.5159040452346737, 28.564135219405774, 1.3149322505645362),
+#     #'Fridge_7': (-50.35, -5.24, 1.51)
+#     }
+#
+#     objects['Hospitality'] = {
+#     'Printer_8':  (-1.6876578896088092, -5.9433505603441326, 1.1084470787101761),
+#     'Sink_9':  (2.9, -3.0, 1.1),
+#     #'Coffee_Machine_10': (-50.35, -5.24, 1.51)
+#     }
+#
+#     objects['Corporate'] = {
+#     'Printer_11':  (-23.734682053245283, -14.096880839756942, 1.106873440473277),
+#     }
+#
+#     objects['Support'] = {
+#     #'Printer_1 2':  (-8.957, -17.511, 1.1),
+#     }
+#
+#     return objects
 
 
 if __name__ == "__main__":

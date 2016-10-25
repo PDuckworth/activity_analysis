@@ -9,54 +9,38 @@ import multiprocessing as mp
 import utils as utils
 
 
-def create_temp_histograms(qsr_path, accu_path):
+def create_temp_histograms(qsr_path, accu_path, global_codebook, all_graphlets):
     """sequentially create a temporary histogram whilst
     generating the codebook from observations"""
 
-    global_codebook = np.array([])
-    all_graphlets = np.array([])
+    for e_cnt, event_file in sorted(enumerate(os.listdir(qsr_path))):
+        e = utils.load_e(qsr_path, event_file)
 
-    for d_cnt, dir_ in sorted(enumerate(os.listdir(qsr_path))):
-        directory = os.path.join(qsr_path, dir_)
-        print "dir: ", directory, d_cnt, dir_
+        if len(e.qsr_object_frame.qstag.graphlets.histogram) == 0:
+            print "removed:", e_cnt, event_file
+            continue
+        e.temp_histogram = np.array([0] * (global_codebook.shape[0]))
 
-        for e_cnt, event_file in sorted(enumerate(os.listdir(directory))):
-            e = utils.load_e(directory, event_file)
+        print "  ", e_cnt, e.uuid, "len:", len(e.qsr_object_frame.qstag.graphlets.histogram) #, len(e.qsr_joints_frame.qstag.graphlets.histogram)
+        # feature_spaces = [e.qsr_object_frame.qstag.graphlets, e.qsr_joints_frame.qstag.graphlets]
+        feature_spaces = [e.qsr_object_frame.qstag.graphlets]#, e.qsr_joints_frame.qstag.graphlets]
 
-            if len(e.qsr_object_frame.qstag.graphlets.histogram) == 0:
-                print "removed:", e_cnt, event_file
-                continue
-            e.temp_histogram = np.array([0] * (global_codebook.shape[0]))
+        for cnt, f in enumerate(feature_spaces):
+            for freq, hash in zip(f.histogram, f.code_book):
+                try:
+                    ind = np.where(global_codebook == hash)[0][0]
+                    e.temp_histogram[ind] += freq
+                # If the hash doesn't exist in the global codebook yet - add it
+                except IndexError:
+                    global_codebook = np.append(global_codebook, hash)
+                    e.temp_histogram = np.append(e.temp_histogram, freq)
+                    all_graphlets = np.append(all_graphlets, f.graphlets[hash])
+                    # print "\n>", hash, f.graphlets[hash]
 
-            print "  ", d_cnt, e_cnt, e.uuid, "len:", len(e.qsr_object_frame.qstag.graphlets.histogram) #, len(e.qsr_joints_frame.qstag.graphlets.histogram)
-            # feature_spaces = [e.qsr_object_frame.qstag.graphlets, e.qsr_joints_frame.qstag.graphlets]
-            feature_spaces = [e.qsr_object_frame.qstag.graphlets]#, e.qsr_joints_frame.qstag.graphlets]
+        # print global_codebook, e.temp_histogram, all_graphlets
+        utils.save_event(e, "Learning/Histograms")
 
-            for cnt, f in enumerate(feature_spaces):
-                for freq, hash in zip(f.histogram, f.code_book):
-                    try:
-                        ind = np.where(global_codebook == hash)[0][0]
-                        e.temp_histogram[ind] += freq
-                    # If the hash doesn't exist in the global codebook yet - add it
-                    except IndexError:
-                        global_codebook = np.append(global_codebook, hash)
-                        e.temp_histogram = np.append(e.temp_histogram, freq)
-                        all_graphlets = np.append(all_graphlets, f.graphlets[hash])
-                        # print "\n>", hash, f.graphlets[hash]
-
-            # print global_codebook, e.temp_histogram, all_graphlets
-            utils.save_event(e, "Learning/Histograms")
-
-    print "Code book shape:", global_codebook.shape
-    f = open(os.path.join(accu_path, "code_book_all.p"), "w")
-    pickle.dump(global_codebook, f)
-    f.close()
-
-    f = open(os.path.join(accu_path, "graphlets_all.p"), "w")
-    pickle.dump(all_graphlets, f)
-    f.close()
-
-    return global_codebook.shape[0]
+    return global_codebook, all_graphlets
 
 def worker_padd(chunk):
     (event_file, histogram_directory, lenth_codebook) = chunk
@@ -69,17 +53,20 @@ def worker_padd(chunk):
     #Overlay the global histogram with the temp histogram
     e.global_histogram[0][:ind] = e.temp_histogram
     # utils.save_event(e)
+
+    if e.label != "NA":
+        e.uuid += "_" + e.label
+
     return (e.uuid, e.global_histogram[0])
 
 
-def recreate_data_with_high_instance_graphlets(accu_path, feature_space=None, low_instance=1):
+def recreate_data_with_high_instance_graphlets(accu_path, feature_space, low_instance):
     """This invloves a lot of loading and saving.
     But essentially, it takes the feature space created over all events, and removes any
     feature that is not witnessed a minimum number of times (low_instance param).
     It then loads the code_book, and graphlets book, to remove the features from there also
     (resaving with a different name)
     """
-
     ## Number of rows with non zero element :
     keep_rows = np.where((feature_space != 0).sum(axis=0) > low_instance)[0]
     remove_inds = np.where((feature_space != 0).sum(axis=0) <= low_instance)[0]
@@ -115,4 +102,4 @@ def recreate_data_with_high_instance_graphlets(accu_path, feature_space=None, lo
     print "  new graphlet book len: ", len(new_graphlets)
     print "removed low (%s) instance graphlets" % low_instance
     print "shape = ", new_feature_space.shape
-    return new_feature_space
+    return

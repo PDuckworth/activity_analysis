@@ -145,7 +145,7 @@ def get_dic_codebook(code_book, graphlets, create_graphlet_images=False):
 
 def run_topic_model(accu_path, config):
 
-    code_book, graphlets, data = utils.load_all_learning_files(accu_path)
+    code_book, graphlets, data = utils.load_learning_files(accu_path)
     dictionary_codebook = {}
     try:
         import pyLDAvis

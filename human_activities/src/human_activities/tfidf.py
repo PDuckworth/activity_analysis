@@ -28,7 +28,7 @@ def get_tf_idf_scores(accu_path, input_data=None, vis=False):
     try:
         (code_book, graphlets, data) = input_data
     except:
-        code_book, graphlets, data = utils.load_all_learning_files(accu_path)
+        code_book, graphlets, data = utils.load_learning_files(accu_path)
 
     """BINARY COUNTING OF FEATURES:"""
     feature_freq = (data != 0).sum(axis=0)  # TF: document_frequencies
