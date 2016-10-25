@@ -20,6 +20,7 @@ Recommended to use the launch file:
 
 ```
 roslaunch activity_data record_data.launch
+roslaunch activity_data record_data.launch log_to_mongo:=True max_frames:=1000 anonymous:=False X:=2 Y:=3
 ```
 This uses `topic_tools drop` to reduce the rate of messages received on `/skeleton_data/incremental_reduced` to 10Hz, as per [here](http://wiki.ros.org/topic_tools/drop)
 

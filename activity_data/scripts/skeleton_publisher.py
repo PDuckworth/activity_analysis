@@ -52,14 +52,12 @@ class SkeletonManager(object):
         # open cv stuff
         self.cv_bridge = CvBridge()
 
-        # load config file
-        self.load_config()
-
         # Get rosparams
-        self._with_logging = rospy.get_param("~log_skeleton", "false")
+        self._with_logging = rospy.get_param("~log_to_mongo", "True")
         self._message_store = rospy.get_param("~message_store", "people_skeleton")
         self._database = rospy.get_param("~database", "message_store")
         self.camera = "head_xtion"
+        self.max_num_frames = rospy.get_param("~max_frames", 1000)
 
         # listeners
         rospy.Subscriber("skeleton_data/incremental_reduced", skeleton_message, self.incremental_callback)
@@ -81,17 +79,6 @@ class SkeletonManager(object):
         if self._with_logging:
             rospy.loginfo("Connecting to mongodb...%s" % self._message_store)
             self._store_client = MessageStoreProxy(collection=self._message_store, database=self._database)
-
-
-    def load_config(self):
-        try:
-            self.config = yaml.load(open(roslib.packages.get_pkg_dir('activity_data') + '/config/config.ini', 'r'))
-            print "config loaded:", self.config
-            self.max_num_frames = self.config['max_num_frames']
-            self.dist_thresh = self.config['dist_thresh']
-            self.dist_flag = 1
-        except:
-            print "no config file found in /activity_data/config/config.ini"
 
     def convert_to_world_frame(self, pose, robot_msg):
         """Convert a single camera frame coordinate into a map frame coordinate"""
