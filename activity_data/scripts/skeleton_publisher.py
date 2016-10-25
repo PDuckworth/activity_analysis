@@ -14,9 +14,10 @@ from geometry_msgs.msg import Pose, Point, Quaternion
 import topological_navigation.msg
 from strands_navigation_msgs.msg import TopologicalMap
 from skeleton_tracker.msg import skeleton_tracker_state, skeleton_message, robot_message, SkeletonComplete
-#from activity_data.msg import  SkeletonComplete
 from mongodb_store.message_store import MessageStoreProxy
 from tf.transformations import euler_from_quaternion
+from soma2_msgs.msg import SOMA2ROIObject
+from shapely.geometry import Polygon, Point
 
 class SkeletonManager(object):
     """To deal with Skeleton messages once they are published as incremental msgs by OpenNI2."""
@@ -30,11 +31,13 @@ class SkeletonManager(object):
         self.accumulate_robot = {} # accumulates multiple skeleton msg
         self.sk_mapping = {} # does something in for the image logging
 
+        self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
         self.map_info = "don't know"  # topological map name
         self.current_node = "don't care"  # topological node waypoint
         self.robot_pose = Pose()   # pose of the robot
         self.ptu_pan = self.ptu_tilt = 0.0
 
+        self.soma_roi_store = MessageStoreProxy(database='soma2data', collection='soma2_roi')
 
         # directory to store the data
         self.date = str(datetime.datetime.now().date())
@@ -61,6 +64,10 @@ class SkeletonManager(object):
         self.camera = "head_xtion"
         self.max_num_frames = rospy.get_param("~max_frames", 1000)
 
+        self.restrict_to_rois = rospy.get_param("~restrict_to_rois", True)
+        if self.restrict_to_rois:
+            self.get_soma_rois()
+
         # listeners
         rospy.Subscriber("skeleton_data/incremental_reduced", skeleton_message, self.incremental_callback)
         rospy.Subscriber('/'+self.camera+'/rgb/image_color', sensor_msgs.msg.Image, callback=self.rgb_callback, queue_size=10)
@@ -81,6 +88,18 @@ class SkeletonManager(object):
         if self._with_logging:
             rospy.loginfo("Connecting to mongodb...%s" % self._message_store)
             self._store_client = MessageStoreProxy(collection=self._message_store, database=self._database)
+
+    def get_soma_rois(self):
+        """Restrict the logging to certain soma regions only
+           Log the ROI along with the detection - to be used in the learning
+        """
+        self.rois = {}
+        for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
+            if roi.map_name != self.soma_map: continue
+            if roi.geotype != "Polygon": continue
+            k = roi.type + "_" + roi.id
+            self.rois[k] = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
+
 
     def convert_to_world_frame(self, pose, robot_msg):
         """Convert a single camera frame coordinate into a map frame coordinate"""
@@ -183,6 +202,7 @@ class SkeletonManager(object):
             # print "new", new_dir
 
             if not os.path.exists(new_dir):
+                np.savetxt(new_dir + '/meta.txt', self.roi)
                 os.makedirs(new_dir)
                 os.makedirs(new_dir+'/depth')
                 os.makedirs(new_dir+'/robot')
@@ -193,7 +213,6 @@ class SkeletonManager(object):
 
                 # create the empty bag file (closed in /skeleton_action)
                 # self.bag_file = rosbag.Bag(new_dir+'/detection.bag', 'w')
-
 
         t = self.sk_mapping[self.inc_sk.uuid]['time']+'_'
         new_dir = self.dir1+self.date+'_'+t+self.inc_sk.uuid #+'_'+waypoint
@@ -298,7 +317,6 @@ class SkeletonManager(object):
 
     def incremental_callback(self, msg):
         """accumulate the multiple skeleton messages until user goes out of scene"""
-
         if self._flag_robot and self._flag_rgb and self._flag_depth:
             if msg.uuid in self.sk_mapping:
                 if self.sk_mapping[msg.uuid]["state"] is 'Tracking':
@@ -329,9 +347,21 @@ class SkeletonManager(object):
 
     def robot_callback(self, msg):
         self.robot_pose = msg
-        if self._flag_robot == 0:
-            print ' >robot pose received'
-            self._flag_robot = 1
+        if not self.restrict_to_rois:
+            if self._flag_robot == 0: self._flag_robot = 1
+        else:
+            in_a_roi = 0
+            for key, polygon in self.rois.items():
+                if polygon.contains(Point([msg.position.x, msg.position.y])):
+                    in_a_roi = 1
+                    self.roi = key
+                    self._flag_robot = 1
+            if in_a_roi == 0:
+                self._flag_robot = 0
+
+            # print self._flag_robot
+            # print "robot in ROI:", in_roi
+            # print ' >robot not in roi'
 
     def ptu_callback(self, msg):
         self.ptu_pan, self.ptu_tilt = msg.position
