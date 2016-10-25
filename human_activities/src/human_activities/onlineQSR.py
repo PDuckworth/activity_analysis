@@ -5,8 +5,7 @@ import wikirandom
 
 def main():
     """
-    Downloads and analyzes a bunch of random Wikipedia articles using
-    online VB for LDA.
+    Test function for Online LDA using Variational Bayes
     """
 
     # The number of documents to analyze each iteration

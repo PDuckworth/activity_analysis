@@ -51,44 +51,36 @@ class Offline_ActivityLearning(object):
 
     def initialise_new_day(self, run_cnt):
         print "\ninitialise new day..."
+        path = os.path.join(self.path, self.recordings)
         self.date = str(datetime.datetime.now().date())
+        print "today:", self.date
 
-        # self.directories_to_learn_from()
-        self.directories_to_learn_from_test(run_cnt)
+        """Hack to run incrementally over ECAI dataset"""
+        if self.config['olda']['test_dataset']:
+            all_data = ['2016-04-05', '2016-04-06', '2016-04-07', '2016-04-08', '2016-04-11']
+            if run_cnt == 1: self.not_processed_dates = [all_data[0]]
+            elif run_cnt == 2: self.not_processed_dates = [all_data[1]]
+            elif run_cnt == 3: self.not_processed_dates = [all_data[2]]
+            elif run_cnt == 4: self.not_processed_dates = [all_data[3]]
+            elif run_cnt == 5: self.not_processed_dates = [all_data[4]]
+            else: self.not_processed_dates = all_data
+
+        else:
+            self.not_processed_dates = []
+            for d_cnt, date in sorted(enumerate(os.listdir(path))):
+                if os.path.isdir(os.path.join(self.hist_path, date)):
+                    print "%s already processed" % date
+                    continue
+                else:
+                    self.not_processed_dates.append(date)
+        print "learning on: ", self.not_processed_dates
+
         try:
             processed_dates = [date for date in sorted(os.listdir(self.accu_path))]
-            # if self.date in processed_dates:
-            #     processed_dates.remove(self.date)
             self.last_processed_date = processed_dates[-1]
         except IndexError:
             self.last_processed_date = None
-
-    def directories_to_learn_from(self):
-        print "today:", self.date
-        path = os.path.join(self.path, self.recordings)
-
-        self.not_processed_dates = []
-        for d_cnt, date in sorted(enumerate(os.listdir(path))):
-            if os.path.isdir(os.path.join(self.hist_path, date)):
-                print "%s already processed" % date
-                continue
-            else:
-                self.not_processed_dates.append(date)
-
-    def directories_to_learn_from_test(self, run_cnt):
-        """HACK - TO TEST incremental data using ECAI dataset dates"""
-
-        print "today:", self.date
-        if run_cnt == 1:
-            self.not_processed_dates = ['2016-04-05']
-        elif run_cnt == 2:
-            self.not_processed_dates = ['2016-04-06']
-        elif run_cnt == 3:
-            self.not_processed_dates = ['2016-04-07']
-        elif run_cnt == 4:
-            self.not_processed_dates = ['2016-04-08', '2016-04-11']
-        else:
-            self.not_processed_dates = ['2016-04-05', '2016-04-06', '2016-04-07', '2016-04-08', '2016-04-11']
+        print "load previous learning from: ", self.last_processed_date
 
     def load_config(self):
         """load a config file for all the learning parameters"""
