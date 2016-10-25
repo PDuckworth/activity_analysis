@@ -32,6 +32,8 @@ class SkeletonManager(object):
         self.sk_mapping = {} # does something in for the image logging
 
         self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
+        self.soma_config = rospy.get_param("~soma_config", "test")
+        
         self.map_info = "don't know"  # topological map name
         self.current_node = "don't care"  # topological node waypoint
         self.robot_pose = Pose()   # pose of the robot
@@ -96,6 +98,7 @@ class SkeletonManager(object):
         self.rois = {}
         for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
             if roi.map_name != self.soma_map: continue
+            if roi.config != self.soma_config: continue
             if roi.geotype != "Polygon": continue
             k = roi.type + "_" + roi.id
             self.rois[k] = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])

@@ -9,6 +9,7 @@
     <arg name="max_frames" default="1000"/>
     <arg name="log_to_mongo" default="True"/>
     <arg name="soma_map" default="collect_data_map_cleaned"/>
+    <arg name="soma_config" default="test"/>
     <arg name="restrict_to_rois" default="True"/>
 
   <!-- Drops human pose estimate msgs to be logged - check topic_tools drop-->
