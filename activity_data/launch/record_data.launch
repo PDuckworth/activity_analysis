@@ -1,0 +1,22 @@
+<launch>
+
+    <arg name="intopic" default="/skeleton_data/incremental"/>
+    <arg name="X" default="2"/>
+    <arg name="Y" default="3"/>
+    <arg name="outtopic" default="/skeleton_data/incremental_reduced"/>
+
+    <arg name="anonymous" default="False"/>
+    <arg name="max_frames" default="1000"/>
+
+  <!-- Drops human pose estimate msgs to be logged - check topic_tools drop-->
+  <node pkg="topic_tools" type="drop" name="drop" output="screen"
+    args="$(arg intopic) $(arg X) $(arg Y) $(arg outtopic)" >
+  </node>
+
+  <!-- Listens to and Logs Skeleton Poses from /skeleton_tracker -->
+	<node pkg="activity_data" type="skeleton_publisher.py" name="skeleton_publisher" output="screen">
+       <param name="anonymous" value="$(arg anonymous)" type="bool"/>
+       <param name="max_frames" value="$(arg max_frames)" type="int"/>
+	</node>
+
+</launch>

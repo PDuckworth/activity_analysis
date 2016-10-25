@@ -33,6 +33,7 @@ class SkeletonManager(object):
         self.robot_pose = Pose()   # pose of the robot
         self.ptu_pan = self.ptu_tilt = 0.0
 
+
         # directory to store the data
         self.date = str(datetime.datetime.now().date())
 
@@ -51,6 +52,9 @@ class SkeletonManager(object):
         # open cv stuff
         self.cv_bridge = CvBridge()
 
+        # load config file
+        self.load_config()
+
         # Get rosparams
         self._with_logging = rospy.get_param("~log_skeleton", "false")
         self._message_store = rospy.get_param("~message_store", "people_skeleton")
@@ -58,7 +62,7 @@ class SkeletonManager(object):
         self.camera = "head_xtion"
 
         # listeners
-        rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
+        rospy.Subscriber("skeleton_data/incremental_reduced", skeleton_message, self.incremental_callback)
         rospy.Subscriber('/'+self.camera+'/rgb/image_color', sensor_msgs.msg.Image, callback=self.rgb_callback, queue_size=10)
         # rospy.Subscriber('/'+self.camera+'/rgb/sk_tracks', sensor_msgs.msg.Image, callback=self.rgb_sk_callback, queue_size=10)
         rospy.Subscriber('/'+self.camera+'/depth/image' , sensor_msgs.msg.Image, self.depth_callback, queue_size=10)
@@ -73,16 +77,21 @@ class SkeletonManager(object):
         self.publish_comp = rospy.Publisher('skeleton_data/complete', SkeletonComplete, queue_size = 10)
         self.rate = rospy.Rate(15.0)
 
-        # only publish the skeleton data when the person is far enough away (distance threshold)
-        # maximum number of frames for one detection
-        self.max_num_frames = 3000
-        self.dist_thresh = 0
-        self.dist_flag = 1
-
         # mongo store
         if self._with_logging:
             rospy.loginfo("Connecting to mongodb...%s" % self._message_store)
             self._store_client = MessageStoreProxy(collection=self._message_store, database=self._database)
+
+
+    def load_config(self):
+        try:
+            self.config = yaml.load(open(roslib.packages.get_pkg_dir('activity_data') + '/config/config.ini', 'r'))
+            print "config loaded:", self.config
+            self.max_num_frames = self.config['max_num_frames']
+            self.dist_thresh = self.config['dist_thresh']
+            self.dist_flag = 1
+        except:
+            print "no config file found in /activity_data/config/config.ini"
 
     def convert_to_world_frame(self, pose, robot_msg):
         """Convert a single camera frame coordinate into a map frame coordinate"""
@@ -301,6 +310,7 @@ class SkeletonManager(object):
 
     def incremental_callback(self, msg):
         """accumulate the multiple skeleton messages until user goes out of scene"""
+
         if self._flag_robot and self._flag_rgb and self._flag_depth:
             if msg.uuid in self.sk_mapping:
                 if self.sk_mapping[msg.uuid]["state"] is 'Tracking':
@@ -378,7 +388,7 @@ class SkeletonManager(object):
 if __name__ == '__main__':
     rospy.init_node('skeleton_publisher', anonymous=True)
 
-    record_rgb = rospy.get_param("~record_rgb", True)
+    record_rgb = rospy.get_param("~anonymous", True)
     print "recording RGB images: %s" % record_rgb
 
     sk_manager = SkeletonManager(record_rgb)

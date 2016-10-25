@@ -16,7 +16,12 @@ Note: There is a flag in main to log anonymous data only (i.e. no RGB data is sa
 rosrun activity_data skeleton_publisher.py
 ```
 
+Recommended to use the launch file:
 
+```
+roslaunch activity_data record_data.launch
+```
+This uses `topic_tools drop` to reduce the rate of messages received on `/skeleton_data/incremental_reduced` to 10Hz, as per [here](http://wiki.ros.org/topic_tools/drop)
 
 record_skeleton_action
 ==============
@@ -57,6 +62,8 @@ Learning_action.py is an action which uses an unsupervised, qualitative framewor
 It first obtains all detected human pose sequences from mongo/or from file, and abstracts the pose information usign Qualitative Spatial Representations, as per [QSRLib](https://github.com/strands-project/strands_qsr_lib).
 
 It then performs unsupervised clustering as per recent literature, [here](http://eprints.whiterose.ac.uk/103049/).
+
+The `online_learning` branch performs online LDA using variational bayes as per [this paper](https://www.cs.princeton.edu/~blei/papers/HoffmanBleiBach2010b.pdf). And outputs a `gamma` and `lambda` for each increment (i.e. each run).
 
 To run:
 
