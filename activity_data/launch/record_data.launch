@@ -22,9 +22,9 @@
        <param name="rec_rgb" value="$(arg rec_rgb)" type="bool"/>
        <param name="max_frames" value="$(arg max_frames)" type="int"/>
        <param name="log_to_mongo" value="$(arg log_to_mongo)" type="bool"/>
-       <param name="soma_map" value="$(arg log_to_mongo)" type="string"/>
-       <param name="soma_config" value="$(arg log_to_mongo)" type="string"/>
-       <param name="use_roi" value="$(arg max_frames)" type="bool"/>
+       <param name="soma_map" value="$(arg soma_map)" type="string"/>
+       <param name="soma_config" value="$(arg soma_config)" type="string"/>
+       <param name="use_roi" value="$(arg use_roi)" type="bool"/>
 	</node>
 
 </launch>
