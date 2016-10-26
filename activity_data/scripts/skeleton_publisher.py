@@ -66,7 +66,7 @@ class SkeletonManager(object):
         self.camera = "head_xtion"
         self.max_num_frames = rospy.get_param("~max_frames", 1000)
 
-        self.restrict_to_rois = rospy.get_param("~restrict_to_rois", True)
+        self.restrict_to_rois = rospy.get_param("~use_roi", True)
         if self.restrict_to_rois:
             self.get_soma_rois()
 
@@ -401,15 +401,20 @@ class SkeletonManager(object):
     #        print ' >rgb skel image received'
     #        self._flag_rgb_sk = 1
 
-    def depth_callback(self, msg):
+   def depth_callback(self, msg):
         # self.depth_msg = msg
         depth_image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
         depth_array = np.array(depth_image, dtype=np.float32)
+        ind = np.argwhere(np.isnan(depth_array))
+        depth_array[ind[:,0],ind[:,1]] = 4.0
         cv2.normalize(depth_array, depth_array, 0, 1, cv2.NORM_MINMAX)
-        self.xtion_img_d_rgb = depth_array*255
+        depth_array *= 255
+        self.xtion_img_d_rgb = depth_array.astype(np.uint8)
+
         if self._flag_depth is 0:
             print ' >depth image received'
             self._flag_depth = 1
+
 
 if __name__ == '__main__':
     rospy.init_node('skeleton_publisher', anonymous=True)
