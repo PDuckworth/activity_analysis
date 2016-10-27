@@ -106,14 +106,16 @@ class skeleton_server(object):
         start = rospy.Time.now()
         end = rospy.Time.now()
         consent_msg = "nothing"
-        rospy.loginfo("Goal: Dur: %s ROI: %s" % (goal.duration, goal.roi_id))
+        rospy.loginfo("Goal: Dur: %s ROI: %s" % (goal.duration.secs, goal.roi_id))
 
+        # Obtains the Robot's region - False if no roi.
+        if not self.get_robot_roi(): return self._as.set_preempted()
+
+        # Obtains the specified ROI to observe - if none, use robot's roi
         observe_polygon = self.get_roi_to_observe(goal.roi_id, goal.roi_config)
-        if observe_polygon == None:
-            return self._as.set_preempted()
+        if observe_polygon == None: return self._as.set_preempted()
 
-        if not self.get_soma_objects(observe_polygon):
-            return self._as.set_preempted()
+        if not self.get_soma_objects(observe_polygon): return self._as.set_preempted()
 
         self.create_possible_navgoals()
 
@@ -366,17 +368,17 @@ class skeleton_server(object):
 
             if polygon.contains(Point([self.robot_pose.position.x, self.robot_pose.position.y])):
                 rospy.loginfo("Robot in ROI: %s" %roi.type)
-                return polygon
+                self.robot_polygon = polygon
+                return True
         rospy.logwarn("This waypoint is not defined in a ROI")
-        return None
+        return False
 
     def get_roi_to_observe(self, roi_id, roi_config):
         """Get the roi to observe.
            Select objects to observe based upon this region - i.e. the recommended interesting roi
         """
-        self.robot_polygon = self.get_robot_roi()
-        observe_polygon = None
 
+        observe_polygon = None
         if roi_id != "":
             for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
                 if roi.map_name != self.soma_map: continue
