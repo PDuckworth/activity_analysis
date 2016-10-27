@@ -118,9 +118,9 @@ class skeleton_server(object):
         if not self.get_soma_objects(observe_polygon): return self._as.set_preempted()
 
         self.create_possible_navgoals()
-
         self.generate_viewpoints()
-        nav_fail = self.goto()
+
+        nav_fail, rem_duration = self.goto(duration)
 
         consented_uuid = ""
         request_consent = 0
@@ -130,7 +130,7 @@ class skeleton_server(object):
         self.sk_publisher.reinisialise()
         self.sk_publisher.max_num_frames =  self.number_of_frames_before_consent_needed
 
-        while (end - start).secs < duration.secs and request_consent == 0:
+        while (end - start).secs < rem_duration.secs and request_consent == 0:
             if self._as.is_preempt_requested():
                  break
 
@@ -156,7 +156,7 @@ class skeleton_server(object):
                     self.reset_ptu()
                     self.speaker.send_goal(maryttsGoal(text=self.speech))
 
-                    new_duration = duration.secs - (end - start).secs
+                    new_duration = rem_duration.secs - (end - start).secs
                     consent_msg = self.consent_client(new_duration)
                     rospy.loginfo("consent returned: %s: %s" % (consent_msg, consented_uuid))
                     # break
@@ -225,8 +225,7 @@ class skeleton_server(object):
             print ">>", view.soma_objs[0], view.soma_objs[1].position
 
 
-
-    def goto(self):
+    def goto(self, duration):
         """
         Given a viewpoint - send the robot there, and fix the PTU angle
         returns: Nav_Failure stats.
@@ -238,11 +237,19 @@ class skeleton_server(object):
         inds.append(len(self.possible_poses))
         self.possible_poses.append(self.robot_pose)
 
+        start = rospy.Time.now()
+        end = rospy.Time.now()
+
         for cnt, ind in enumerate(inds):
             """For all possible viewpoints, try to go to one - if fails, loop."""
 
+            if (end - start).secs > duration.secs:
+                rem_duration = rospy.Duration(0)
+                return True, rem_duration
+
             if self._as.is_preempt_requested():
-                return
+                rem_duration = rospy.Duration(0)
+                return True, rem_duration
 
             # Publish ViewPose for visualisation
             s = PoseStamped()
@@ -264,6 +271,7 @@ class skeleton_server(object):
 
             if res.outcome != 'succeeded':
                 rospy.loginfo("nav goal fail: %s" % str(res.outcome))
+                end = rospy.Time.now()
                 continue
             else:
                 rospy.loginfo("Reached nav goal: %s" % str(res.outcome))
@@ -275,10 +283,14 @@ class skeleton_server(object):
                 ptu_tilt = math.degrees(math.atan2(dist_z, dist))
                 rospy.loginfo("ptu: 175, ptu tilt: %s" % ptu_tilt)
                 self.set_ptu_state(pan=175, tilt=ptu_tilt)
-                return False
+
+                end = rospy.Time.now()
+                rem_duration = rospy.Duration(duration.secs - (end - start).secs)
+                return False, rem_duration
 
         """IF NO VIEWS work (even the waypoint?)- try looking on mongo for one that has previously worked?"""
-        return True
+        rem_duration = rospy.Duration(duration.secs - (end - start).secs)
+        return True, rem_duration
 
 
     def generate_viewpoints(self):
@@ -418,7 +430,7 @@ class skeleton_server(object):
         'Double_doors_112': (-8.365, -18.440, 1.021),
         'robot_lab_Majd_desk': (-7.3, -33.5, 1.2),
         'robot_lab_Baxter_desk':(-4.4, -31.8, 1.2),
-        'robot_lab_Poster':(-4.3, 34.0, 1.2)
+        'robot_lab_Poster':(-4.3, -34.0, 1.2)
         }
         # reduce all the objects to those in the same region as the robot
 
@@ -433,13 +445,13 @@ class skeleton_server(object):
 
         if len(objects_in_roi) > 0:
             r = random.randint(0,len(objects_in_roi)-1)
-            rospy.loginfo("%s objects to chose from. Selected %s" % (len(objects_in_roi), r))
+            rospy.loginfo("%s objects to chose from. Selected id: %s" % (len(objects_in_roi), r))
             (self.selected_object, self.selected_object_pose) = objects_in_roi[r]
             rospy.loginfo("selected object to view: %s. nav_target: (%s, %s)" % (self.selected_object, objects_in_roi[r][1].position.x, objects_in_roi[r][1].position.y))
             self.selected_object_id = r
             return True
         else:
-            rospy.loginfo("Robot not in a ROI - cannot select a view point of an object in that roi")
+            rospy.loginfo("No objects in this ROI - cannot select a view point")
             return False
 
     def consent_client(self, duration):

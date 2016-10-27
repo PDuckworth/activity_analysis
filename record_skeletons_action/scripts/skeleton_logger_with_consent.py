@@ -153,11 +153,11 @@ class SkeletonManagerConsent(object):
                 d = new_dir+'/'
 
                 f_ = f+1
-                if f < 10:          f_str = '0000'+str(f_)
-                elif f < 100:          f_str = '000'+str(f_)
-                elif f < 1000:          f_str = '00'+str(f_)
-                elif f < 10000:          f_str = '0'+str(f_)
-                elif f < 100000:          f_str = str(f_)
+                if f_ < 10:          f_str = '0000'+str(f_)
+                elif f_ < 100:          f_str = '000'+str(f_)
+                elif f_ < 1000:          f_str = '00'+str(f_)
+                elif f_ < 10000:          f_str = '0'+str(f_)
+                elif f_ < 100000:          f_str = str(f_)
 
                 # save images
                 cv2.imwrite(d+'rgb/rgb_'+f_str+'.jpg', self.accumulate_rgb_images[uuid][f])
