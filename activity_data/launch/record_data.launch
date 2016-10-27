@@ -8,11 +8,12 @@
   -->
     <arg name="rec_rgb" default="True"/>
     <arg name="max_frames" default="1000"/>
+    <arg name="frame_rate_reduce" default="3"/>
     <arg name="consent_num_frames" default="1000"/>
     <arg name="log_to_mongo" default="True"/>
     <arg name="soma_map" default="collect_data_map_cleaned"/>
     <arg name="soma_config" default="test"/>
-    <arg name="use_roi" default="True"/>
+    <arg name="use_roi" default="False"/>
 
   <!-- Drops human pose estimate msgs to be logged - check topic_tools drop-->
   <!-- Don't use this - drop will intefer with uuid's of the tracker :(

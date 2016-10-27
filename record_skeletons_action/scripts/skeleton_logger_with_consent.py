@@ -19,7 +19,7 @@ from mongodb_store.message_store import MessageStoreProxy
 class SkeletonManagerConsent(object):
     """To deal with Skeleton messages once they are published as incremental msgs by OpenNI2."""
 
-    def __init__(self):
+    def __init__(self, frame_rate_reduce=3):
 
         self.reinisialise()
         self.reset_data()
@@ -27,7 +27,8 @@ class SkeletonManagerConsent(object):
         # open cv stuff
         self.cv_bridge = CvBridge()
         self.camera = "head_xtion"
-        self.max_num_frames = 1000
+        self.max_num_frames = 3000  # consent can be requested after less in execute action callback
+        self.reduce_frame_rate_by = frame_rate_reduce
 
         # listeners
         rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
@@ -76,6 +77,9 @@ class SkeletonManagerConsent(object):
         if self._flag_robot and self._flag_rgb and self._flag_depth and self.requested_consent_flag is 0:
             if msg.uuid in self.sk_mapping:
                 if self.sk_mapping[msg.uuid]["state"] is 'Tracking' and len(self.accumulate_data[msg.uuid]) <= self.max_num_frames:
+                    self.sk_mapping[msg.uuid]["msgs_recieved"]+=1
+
+                    if self.sk_mapping[msg.uuid]["msgs_recieved"] % self.reduce_frame_rate_by == 0:
                         self.accumulate_data[msg.uuid].append(msg)
                         robot_msg = robot_message(robot_pose = self.robot_pose, PTU_pan = self.ptu_pan, PTU_tilt = self.ptu_tilt)
                         self.accumulate_robot[msg.uuid].append(robot_msg)
@@ -85,7 +89,7 @@ class SkeletonManagerConsent(object):
 
 
     def new_user_detected(self, msg):
-        self.sk_mapping[msg.uuid] = {"state":'Tracking', "time":str(datetime.datetime.now().time()).split('.')[0]+'_'}
+        self.sk_mapping[msg.uuid] = {"state":'Tracking', "msgs_recieved":1, "time":str(datetime.datetime.now().time()).split('.')[0]+'_'}
         self.accumulate_data[msg.uuid] = []
         self.accumulate_robot[msg.uuid] = []
         self.accumulate_rgb_images[msg.uuid] = []
@@ -231,11 +235,13 @@ class SkeletonManagerConsent(object):
 
     def depth_callback(self, msg):
         if self.listen_to == 1:
-            # self.depth_msg = msg
             depth_image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
             depth_array = np.array(depth_image, dtype=np.float32)
+            ind = np.argwhere(np.isnan(depth_array))
+            depth_array[ind[:,0],ind[:,1]] = 4.0
             cv2.normalize(depth_array, depth_array, 0, 1, cv2.NORM_MINMAX)
-            self.xtion_img_d_rgb = depth_array*255
+            depth_array *= 255
+            self.xtion_img_d_rgb = depth_array.astype(np.uint8)
             if self._flag_depth is 0:
                 rospy.loginfo("pub> depth image recived")
                 self._flag_depth = 1

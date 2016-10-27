@@ -67,7 +67,8 @@ class SkeletonManager(object):
         self.camera = "head_xtion"
         self.max_num_frames = rospy.get_param("~max_frames", 1000)
 
-        self.restrict_to_rois = rospy.get_param("~use_roi", True)
+        self.restrict_to_rois = rospy.get_param("~use_roi", False)
+        print "restricted to soma ROI: ", self.restrict_to_rois
         if self.restrict_to_rois:
             self.get_soma_rois()
 
@@ -329,17 +330,15 @@ class SkeletonManager(object):
 
         if self._flag_robot and self._flag_rgb and self._flag_depth:
             if msg.uuid in self.sk_mapping:
-                if self.sk_mapping[msg.uuid]["state"] is 'Tracking':
+                if self.sk_mapping[msg.uuid]["state"] is 'Tracking' and len(self.accumulate_data[msg.uuid]) < self.max_num_frames:
 
                     self.sk_mapping[msg.uuid]["msgs_recieved"]+=1
-
                     if self.sk_mapping[msg.uuid]["msgs_recieved"] % self.reduce_frame_rate_by == 0:
-                        if len(self.accumulate_data[msg.uuid]) < self.max_num_frames:
-                            self.accumulate_data[msg.uuid].append(msg)
-                            robot_msg = robot_message(robot_pose = self.robot_pose, PTU_pan = self.ptu_pan, PTU_tilt = self.ptu_tilt)
-                            self.accumulate_robot[msg.uuid].append(robot_msg)
-                            self._dump_images(msg)
-                            # print msg.userID, msg.uuid, len(self.accumulate_data[msg.uuid])
+                        self.accumulate_data[msg.uuid].append(msg)
+                        robot_msg = robot_message(robot_pose = self.robot_pose, PTU_pan = self.ptu_pan, PTU_tilt = self.ptu_tilt)
+                        self.accumulate_robot[msg.uuid].append(robot_msg)
+                        self._dump_images(msg)
+                        # print msg.userID, msg.uuid, len(self.accumulate_data[msg.uuid])
 
     def new_user_detected(self, msg):
         self.sk_mapping[msg.uuid] = {"state":'Tracking', "frame":1, "msgs_recieved":1}

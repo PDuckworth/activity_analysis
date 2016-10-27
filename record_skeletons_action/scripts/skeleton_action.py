@@ -20,7 +20,7 @@ from sensor_msgs.msg import JointState
 from std_srvs.srv import Empty, EmptyResponse
 from soma2_msgs.msg import SOMA2Object, SOMA2ROIObject
 from skeleton_tracker.msg import skeleton_message
-from skeleton_publisher_with_consent import SkeletonManagerConsent
+from skeleton_logger_with_consent import SkeletonManagerConsent
 from record_skeletons_action.msg import skeletonAction, skeletonActionResult
 from consent_tsc.msg import ManageConsentAction, ConsentResult, ManageConsentGoal
 from strands_navigation_msgs.msg import MonitoredNavigationAction, MonitoredNavigationGoal
@@ -48,15 +48,15 @@ class skeleton_server(object):
                                                     execute_cb=self.execute_cb, auto_start=False)
         self._as.start()
 
-        self.reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce", 3)
+        reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce", 3)
         self.number_of_frames_before_consent_needed = rospy.get_param("~consent_num_frames", num_of_frames)
         rospy.loginfo("Required num of frames: %s" % self.number_of_frames_before_consent_needed)
-
-
-        # skeleton publisher class (logs data given a detection)
-        self.sk_publisher = SkeletonManagerConsent()
+        rospy.loginfo("Frame rate reduced by /%s" % reduce_frame_rate_by)
         self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
         self.soma_config = rospy.get_param("~soma_config", "test")
+
+        # skeleton publisher class (logs data given a detection)
+        self.sk_publisher = SkeletonManagerConsent(reduce_frame_rate_by)
 
         # robot pose
         self.listen_to_robot_pose = 1
@@ -106,13 +106,15 @@ class skeleton_server(object):
         start = rospy.Time.now()
         end = rospy.Time.now()
         consent_msg = "nothing"
-        rospy.loginfo("Observe ROI: %s", goal.roi_id)
+        rospy.loginfo("Goal: Dur: %s ROI: %s" % (goal.duration, goal.roi_id))
 
         observe_polygon = self.get_roi_to_observe(goal.roi_id, goal.roi_config)
         if observe_polygon == None:
             return self._as.set_preempted()
 
-        self.get_soma_objects(observe_polygon)
+        if not self.get_soma_objects(observe_polygon):
+            return self._as.set_preempted()
+
         self.create_possible_navgoals()
 
         self.generate_viewpoints()
@@ -381,7 +383,7 @@ class skeleton_server(object):
                 if roi.config != roi_config: continue
                 if roi.roi_id != roi_id: continue
                 if roi.geotype != "Polygon": continue
-                observe_polygon = polygon
+                observe_polygon = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
                 rospy.loginfo("Observe ROI: %s" %roi.type)
             if observe_polygon ==None:
                 rospy.logwarn("ROI given to observe not found")
@@ -419,24 +421,24 @@ class skeleton_server(object):
         # reduce all the objects to those in the same region as the robot
 
         objects_in_roi = []
-        try:
-            for (obj_name, (x,y,z)) in all_dummy_objects.items():
-                if target_polygon.contains(Point([x, y])):
-                    pose = Pose()
-                    pose.position.x = x
-                    pose.position.y = y
-                    pose.position.z = z
-                    objects_in_roi.append((obj_name, pose))
+        for (obj_name, (x,y,z)) in all_dummy_objects.items():
+            if target_polygon.contains(Point([x, y])):
+                pose = Pose()
+                pose.position.x = x
+                pose.position.y = y
+                pose.position.z = z
+                objects_in_roi.append((obj_name, pose))
 
-            r = random.randint(0,len(objects_in_roi))-1
+        if len(objects_in_roi) > 0:
+            r = random.randint(0,len(objects_in_roi)-1)
+            rospy.loginfo("%s objects to chose from. Selected %s" % (len(objects_in_roi), r))
             (self.selected_object, self.selected_object_pose) = objects_in_roi[r]
             rospy.loginfo("selected object to view: %s. nav_target: (%s, %s)" % (self.selected_object, objects_in_roi[r][1].position.x, objects_in_roi[r][1].position.y))
             self.selected_object_id = r
-        except AttributeError:
+            return True
+        else:
             rospy.loginfo("Robot not in a ROI - cannot select a view point of an object in that roi")
-
-            selected_object_pose
-        return
+            return False
 
     def consent_client(self, duration):
         rospy.loginfo("Creating consent client")
