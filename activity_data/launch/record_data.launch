@@ -1,25 +1,30 @@
 <launch>
 
+  <!-- Don't use this - drop will intefer with uuid's of the tracker :(
     <arg name="intopic" default="/skeleton_data/incremental"/>
     <arg name="X" default="2"/>
     <arg name="Y" default="3"/>
     <arg name="outtopic" default="/skeleton_data/incremental_reduced"/>
-
+  -->
     <arg name="rec_rgb" default="True"/>
     <arg name="max_frames" default="1000"/>
+    <arg name="consent_num_frames" default="1000"/>
     <arg name="log_to_mongo" default="True"/>
     <arg name="soma_map" default="collect_data_map_cleaned"/>
     <arg name="soma_config" default="test"/>
     <arg name="use_roi" default="True"/>
 
   <!-- Drops human pose estimate msgs to be logged - check topic_tools drop-->
+  <!-- Don't use this - drop will intefer with uuid's of the tracker :(
   <node pkg="topic_tools" type="drop" name="drop" output="screen"
     args="$(arg intopic) $(arg X) $(arg Y) $(arg outtopic)" >
   </node>
+  -->
 
   <!-- Listens to and Logs Skeleton Poses from /skeleton_tracker -->
-	<node pkg="activity_data" type="skeleton_publisher.py" name="skeleton_publisher" output="screen">
+	<node pkg="activity_data" type="skeleton_logger.py" name="skeleton_publisher" output="screen">
        <param name="rec_rgb" value="$(arg rec_rgb)" type="bool"/>
+       <param name="frame_rate_reduce" value="$(arg frame_rate_reduce)" type="int"/>
        <param name="max_frames" value="$(arg max_frames)" type="int"/>
        <param name="log_to_mongo" value="$(arg log_to_mongo)" type="bool"/>
        <param name="soma_map" value="$(arg soma_map)" type="string"/>
@@ -27,4 +32,11 @@
        <param name="use_roi" value="$(arg use_roi)" type="bool"/>
 	</node>
 
+  <!-- TSC Recording RGB action server which requests consent -->
+	<node pkg="record_skeletons_action" type="skeleton_action.py" name="skeleton_action" output="screen">
+       <param name="consent_num_frames" value="$(arg consent_num_frames)" type="int"/>
+       <param name="frame_rate_reduce" value="$(arg frame_rate_reduce)" type="int"/>
+       <param name="soma_map" value="$(arg soma_map)" type="string"/>
+       <param name="soma_config" value="$(arg soma_config)" type="string"/>
+	</node>
 </launch>

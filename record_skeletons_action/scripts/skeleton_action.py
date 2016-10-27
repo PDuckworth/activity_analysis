@@ -47,9 +47,11 @@ class skeleton_server(object):
         self._as = actionlib.SimpleActionServer(self._action_name, skeletonAction, \
                                                     execute_cb=self.execute_cb, auto_start=False)
         self._as.start()
-        #self.load_config()
-        self.number_of_frames_before_consent_needed = num_of_frames
-        rospy.loginfo("Required num of frames: %s" % num_of_frames)
+
+        self.reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce", 3)
+        self.number_of_frames_before_consent_needed = rospy.get_param("~consent_num_frames", num_of_frames)
+        rospy.loginfo("Required num of frames: %s" % self.number_of_frames_before_consent_needed)
+
 
         # skeleton publisher class (logs data given a detection)
         self.sk_publisher = SkeletonManagerConsent()
@@ -128,7 +130,7 @@ class skeleton_server(object):
             if self._as.is_preempt_requested():
                  break
 
-            print "1 ", self.sk_publisher.accumulate_data.keys()
+            # print "1 ", self.sk_publisher.accumulate_data.keys()
             for cnt, (uuid, incr_msgs) in enumerate(self.sk_publisher.accumulate_data.items()):
                 # print ">>", len(self.sk_publisher.accumulate_data[uuid]), uuid
 
@@ -140,20 +142,19 @@ class skeleton_server(object):
                         self.publish_consent_pose.publish(look_at_pose)
                         # self.gazeClient.send_goal(self.gazegoal)
 
-                print ">", len(incr_msgs)
                 if len(incr_msgs) >= self.number_of_frames_before_consent_needed:
                     request_consent = 1
                     consented_uuid = uuid
                     self.sk_publisher.requested_consent_flag = 1  # stops the publisher storing data
                     self.upload_images_to_mongo(uuid)       # uploads latest images to mongo
 
-                    print "breaking loop for: %s" % consented_uuid
+                    rospy.loginfo("breaking loop for: %s" % consented_uuid)
                     self.reset_ptu()
                     self.speaker.send_goal(maryttsGoal(text=self.speech))
 
                     new_duration = duration.secs - (end - start).secs
                     consent_msg = self.consent_client(new_duration)
-                    print "consent returned: %s: %s" % (consent_msg, consented_uuid)
+                    rospy.loginfo("consent returned: %s: %s" % (consent_msg, consented_uuid))
                     # break
 
             end = rospy.Time.now()
@@ -589,6 +590,5 @@ class skeleton_server(object):
 if __name__ == "__main__":
     rospy.init_node('skeleton_action_server')
 
-    num_of_frames = 100
-    skeleton_server("record_skeletons", num_of_frames)
+    skeleton_server("record_skeletons")
     rospy.spin()

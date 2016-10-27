@@ -39,6 +39,7 @@ class SkeletonManager(object):
         self.robot_pose = Pose()   # pose of the robot
         self.ptu_pan = self.ptu_tilt = 0.0
 
+        self.reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce", 3)
         self.soma_roi_store = MessageStoreProxy(database='soma2data', collection='soma2_roi')
 
         # directory to store the data
@@ -71,7 +72,7 @@ class SkeletonManager(object):
             self.get_soma_rois()
 
         # listeners
-        rospy.Subscriber("skeleton_data/incremental_reduced", skeleton_message, self.incremental_callback)
+        rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
         rospy.Subscriber('/'+self.camera+'/rgb/image_color', sensor_msgs.msg.Image, callback=self.rgb_callback, queue_size=10)
         # rospy.Subscriber('/'+self.camera+'/rgb/sk_tracks', sensor_msgs.msg.Image, callback=self.rgb_sk_callback, queue_size=10)
         rospy.Subscriber('/'+self.camera+'/depth/image' , sensor_msgs.msg.Image, self.depth_callback, queue_size=10)
@@ -159,7 +160,7 @@ class SkeletonManager(object):
             print "storing: ", uuid, type(uuid)
             print "date: ", self.date #, type(self.date)
             print "number of detectons: ", len(self.accumulate_data[uuid]) #, type(len(self.accumulate_data[uuid]))
-            print "map info: %s. (x,y) Position: (%s,%s)" % (self.map_info, first_map_point.x, first_map_point.y)  #, type(self.map_info)
+            print "map name: %s. (x,y) Position: (%s,%s)" % (self.soma_map, first_map_point.x, first_map_point.y)  #, type(self.map_info)
             print "current node: ", self.current_node, type(self.current_node)
             print "start/end rostime:", st, en #type(st), en, type(en)
 
@@ -167,7 +168,7 @@ class SkeletonManager(object):
                                 time = self.sk_mapping[uuid]['time'], \
                                 skeleton_data = self.accumulate_data[uuid], \
                                 number_of_detections = len(self.accumulate_data[uuid]), \
-                                map_name = self.map_info, current_topo_node = self.current_node, \
+                                map_name = self.soma_map, current_topo_node = self.current_node, \
                                 start_time = st, end_time = en, robot_data = self.accumulate_robot[uuid], \
                                 human_map_point = first_map_point)
 
@@ -325,18 +326,23 @@ class SkeletonManager(object):
 
     def incremental_callback(self, msg):
         """accumulate the multiple skeleton messages until user goes out of scene"""
+
         if self._flag_robot and self._flag_rgb and self._flag_depth:
             if msg.uuid in self.sk_mapping:
                 if self.sk_mapping[msg.uuid]["state"] is 'Tracking':
-                    if len(self.accumulate_data[msg.uuid]) < self.max_num_frames:
-                        self.accumulate_data[msg.uuid].append(msg)
-                        robot_msg = robot_message(robot_pose = self.robot_pose, PTU_pan = self.ptu_pan, PTU_tilt = self.ptu_tilt)
-                        self.accumulate_robot[msg.uuid].append(robot_msg)
-                        self._dump_images(msg)
-                        # print msg.userID, msg.uuid, len(self.accumulate_data[msg.uuid])
+
+                    self.sk_mapping[msg.uuid]["msgs_recieved"]+=1
+
+                    if self.sk_mapping[msg.uuid]["msgs_recieved"] % self.reduce_frame_rate_by == 0:
+                        if len(self.accumulate_data[msg.uuid]) < self.max_num_frames:
+                            self.accumulate_data[msg.uuid].append(msg)
+                            robot_msg = robot_message(robot_pose = self.robot_pose, PTU_pan = self.ptu_pan, PTU_tilt = self.ptu_tilt)
+                            self.accumulate_robot[msg.uuid].append(robot_msg)
+                            self._dump_images(msg)
+                            # print msg.userID, msg.uuid, len(self.accumulate_data[msg.uuid])
 
     def new_user_detected(self, msg):
-        self.sk_mapping[msg.uuid] = {"state":'Tracking', "frame":1}
+        self.sk_mapping[msg.uuid] = {"state":'Tracking', "frame":1, "msgs_recieved":1}
         self.accumulate_data[msg.uuid] = []
         self.accumulate_robot[msg.uuid] = []
 

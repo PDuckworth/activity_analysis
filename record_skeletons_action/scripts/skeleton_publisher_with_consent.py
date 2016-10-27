@@ -120,7 +120,7 @@ class SkeletonManagerConsent(object):
 
         # print ">>", self.sk_mapping[uuid]
         # print len(self.sk_mapping[uuid]), len(self.accumulate_data[uuid]), len(self.accumulate_robot[uuid]), len(self.accumulate_rgb_images[uuid]), len(self.accumulate_rgb_sk_images[uuid]), len(self.accumulate_depth_images[uuid])
-        print "dumping data for %s%s" % (self.sk_mapping[uuid]['time'], uuid)
+        rospy.loginfo("dumping data for %s%s" % (self.sk_mapping[uuid]['time'], uuid))
 
         """Loop over all the held data and save to disc"""
         for f, incr_msg in enumerate(self.accumulate_data[uuid]):
