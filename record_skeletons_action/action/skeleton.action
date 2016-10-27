@@ -1,6 +1,7 @@
 # goal
 duration duration
-string waypoint
+string roi_id
+string roi_config
 ---
 # result
 ---

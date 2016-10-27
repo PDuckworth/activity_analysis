@@ -49,9 +49,12 @@ class skeleton_server(object):
         self._as.start()
         #self.load_config()
         self.number_of_frames_before_consent_needed = num_of_frames
+        rospy.loginfo("Required num of frames: %s" % num_of_frames)
 
         # skeleton publisher class (logs data given a detection)
         self.sk_publisher = SkeletonManagerConsent()
+        self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
+        self.soma_config = rospy.get_param("~soma_config", "test")
 
         # robot pose
         self.listen_to_robot_pose = 1
@@ -101,10 +104,13 @@ class skeleton_server(object):
         start = rospy.Time.now()
         end = rospy.Time.now()
         consent_msg = "nothing"
-        rospy.loginfo("GOAL: %s", goal.waypoint)
+        rospy.loginfo("Observe ROI: %s", goal.roi_id)
 
-        self.get_soma_roi()
-        self.get_soma_objects()
+        observe_polygon = self.get_roi_to_observe(goal.roi_id, goal.roi_config)
+        if observe_polygon == None:
+            return self._as.set_preempted()
+
+        self.get_soma_objects(observe_polygon)
         self.create_possible_navgoals()
 
         self.generate_viewpoints()
@@ -122,6 +128,7 @@ class skeleton_server(object):
             if self._as.is_preempt_requested():
                  break
 
+            print "1 ", self.sk_publisher.accumulate_data.keys()
             for cnt, (uuid, incr_msgs) in enumerate(self.sk_publisher.accumulate_data.items()):
                 # print ">>", len(self.sk_publisher.accumulate_data[uuid]), uuid
 
@@ -133,6 +140,7 @@ class skeleton_server(object):
                         self.publish_consent_pose.publish(look_at_pose)
                         # self.gazeClient.send_goal(self.gazegoal)
 
+                print ">", len(incr_msgs)
                 if len(incr_msgs) >= self.number_of_frames_before_consent_needed:
                     request_consent = 1
                     consented_uuid = uuid
@@ -155,7 +163,8 @@ class skeleton_server(object):
 
         # LOG THE STATS TO MONGO
         res = (request_consent, consent_msg)
-        self.log_view_info(res, nav_fail, goal.waypoint, start, end)
+        observed_roi = goal.roi_config + ":" + goal.roi_id
+        self.log_view_info(res, nav_fail, observed_roi, start, end)
 
         # reset everything:
         self.reset_everything()
@@ -176,15 +185,15 @@ class skeleton_server(object):
         self.sk_publisher.reset_data()
         print "finished action\n"
 
-    def log_view_info(self, res, nav_fail, waypoint, starttime=None, endstime=None):
+    def log_view_info(self, res, nav_fail, roi, starttime=None, endstime=None):
         """Given the action is over, log the viewpoint and bool output of the recording (successfull?)"""
 
         vinfo = ViewInfo()
-        vinfo.waypoint = waypoint
+        vinfo.waypoint = roi
         vinfo.map_name  = rospy.get_param('/topological_map_name', "no_map_name")
         vinfo.mode = "activity_rec"
         vinfo.starttime = int(starttime.to_sec())
-        vinfo.robot_pose = self.possible_poses[ind]
+        vinfo.robot_pose = self.selected_robot_pose
 
         vinfo.ptu_state = JointState(name=['pan', 'tilt'], position=[self.ptu_values[0], self.ptu_values[1]],
             velocity= [self.ptu_values[2], self.ptu_values[3]])
@@ -243,6 +252,7 @@ class skeleton_server(object):
             goal.target_pose.header.stamp = rospy.get_rostime() #rospy.Time.now()
 
             goal.target_pose.pose = self.possible_poses[ind]
+            self.selected_robot_pose = goal.target_pose.pose
             self.nav_client.send_goal(goal)
             self.nav_client.wait_for_result()
             res = self.nav_client.get_result()
@@ -258,11 +268,11 @@ class skeleton_server(object):
                 p = self.possible_poses[ind]
                 dist = abs(math.hypot((p.position.x - obj.position.x), (p.position.y - obj.position.y)))
                 ptu_tilt = math.degrees(math.atan2(dist_z, dist))
-                rospy.loginfo("ptu: 175, ptu tilt: %s" % ptu_tilt
-                self.set_ptu_state(pan=175, `tilt=ptu_tilt)
+                rospy.loginfo("ptu: 175, ptu tilt: %s" % ptu_tilt)
+                self.set_ptu_state(pan=175, tilt=ptu_tilt)
                 return False
 
-        """IF NO VIEWS work (even the waypoint?)- try looking on mongo for one that has previously worked"""
+        """IF NO VIEWS work (even the waypoint?)- try looking on mongo for one that has previously worked?"""
         return True
 
 
@@ -286,7 +296,7 @@ class skeleton_server(object):
             # print "xDist %s, yDist %s" %(x_dist, y_dist)
             dist = abs(math.hypot(x_dist, y_dist))
             if dist > self.view_dist_thresh_low:
-                if self.roi_polygon.contains(Point([p.position.x, p.position.y])):
+                if self.robot_polygon.contains(Point([p.position.x, p.position.y])):
                     # yaw = math.atan2(y_dist, x_dist)
                     p = self.add_quarternion(p, x_dist, y_dist)
                     poses.append(p)
@@ -340,28 +350,46 @@ class skeleton_server(object):
             roi.points.append(p)
         self.nav_goals_client(roi)
 
-    def get_soma_roi(self):
-        """Find the roi of the robot at it's waypoint.
-           Make sure the randomly generated viewpoints are all in that roi also
+    def get_robot_roi(self):
+        """Find the roi of the robot at it's waypoint - in case no target ROI is passed
+        Make sure the randomly generated viewpoints are all in this roi also - i.e. this room
         """
-        self.roi_polygon = None
-        soma_map = "collect_data_map_cleaned"
-        # soma_config = "test"
-        # query = {"map":soma_map, "config":soma_config}
-        all_rois = self.soma_roi_store.query(SOMA2ROIObject._type)
-        for (roi, meta) in all_rois:
-            if roi.map_name != soma_map: continue
+        self.robot_polygon = None
+        for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
+            if roi.map_name != self.soma_map: continue
+            if roi.config != self.soma_config: continue
             if roi.geotype != "Polygon": continue
             polygon = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
+
             if polygon.contains(Point([self.robot_pose.position.x, self.robot_pose.position.y])):
-                self.roi_polygon = polygon
-                rospy.loginfo("ROI: %s" %roi.type)
+                rospy.loginfo("Robot in ROI: %s" %roi.type)
+                return polygon
+        rospy.logwarn("This waypoint is not defined in a ROI")
+        return None
 
-        if self.roi_polygon == None:
-            rospy.warn("No ROI defined for this waypoint")
+    def get_roi_to_observe(self, roi_id, roi_config):
+        """Get the roi to observe.
+           Select objects to observe based upon this region - i.e. the recommended interesting roi
+        """
+        self.robot_polygon = self.get_robot_roi()
+        observe_polygon = None
 
+        if roi_id != "":
+            for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
+                if roi.map_name != self.soma_map: continue
+                if roi.config != roi_config: continue
+                if roi.roi_id != roi_id: continue
+                if roi.geotype != "Polygon": continue
+                observe_polygon = polygon
+                rospy.loginfo("Observe ROI: %s" %roi.type)
+            if observe_polygon ==None:
+                rospy.logwarn("ROI given to observe not found")
+        else:
+            rospy.logwarn("No ROI given to observe - use robot ROI")
+            observe_polygon = self.robot_polygon
+        return observe_polygon
 
-    def get_soma_objects(self):
+    def get_soma_objects(self, target_polygon):
         """srv call to mongo and get the list of object IDs to use and locations"""
 
         ids = self.soma_id_store.query(Int32._type)
@@ -383,25 +411,30 @@ class skeleton_server(object):
         'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
         'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
         'Double_doors_112': (-8.365, -18.440, 1.021),
-        'robot_lab_test_1': (-7.3, -33.4, 1.2),
-        'robot_lab_test_2':(-4.4, -31.8, 1.2),
-        'robot_lab_test_3':(-5.5, 34.0, 1.2)
+        'robot_lab_Majd_desk': (-7.3, -33.5, 1.2),
+        'robot_lab_Baxter_desk':(-4.4, -31.8, 1.2),
+        'robot_lab_Poster':(-4.3, 34.0, 1.2)
         }
         # reduce all the objects to those in the same region as the robot
+
         objects_in_roi = []
-        for (obj_name, (x,y,z)) in all_dummy_objects.items():
-            if self.roi_polygon.contains(Point([x, y])):
-                pose = Pose()
-                pose.position.x = x
-                pose.position.y = y
-                pose.position.z = z
-                objects_in_roi.append((obj_name, pose))
+        try:
+            for (obj_name, (x,y,z)) in all_dummy_objects.items():
+                if target_polygon.contains(Point([x, y])):
+                    pose = Pose()
+                    pose.position.x = x
+                    pose.position.y = y
+                    pose.position.z = z
+                    objects_in_roi.append((obj_name, pose))
 
-        r = random.randint(0,len(objects_in_roi))-1
-        (self.selected_object, self.selected_object_pose) = objects_in_roi[r]
-        rospy.loginfo("selected object to view: %s. nav_target: (%s, %s)" % (self.selected_object, objects_in_roi[r][1].position.x, objects_in_roi[r][1].position.y))
+            r = random.randint(0,len(objects_in_roi))-1
+            (self.selected_object, self.selected_object_pose) = objects_in_roi[r]
+            rospy.loginfo("selected object to view: %s. nav_target: (%s, %s)" % (self.selected_object, objects_in_roi[r][1].position.x, objects_in_roi[r][1].position.y))
+            self.selected_object_id = r
+        except AttributeError:
+            rospy.loginfo("Robot not in a ROI - cannot select a view point of an object in that roi")
 
-        self.selected_object_id = r
+            selected_object_pose
         return
 
     def consent_client(self, duration):
@@ -556,6 +589,6 @@ class skeleton_server(object):
 if __name__ == "__main__":
     rospy.init_node('skeleton_action_server')
 
-    num_of_frames = 600
+    num_of_frames = 100
     skeleton_server("record_skeletons", num_of_frames)
     rospy.spin()

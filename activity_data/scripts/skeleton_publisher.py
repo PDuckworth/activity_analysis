@@ -401,7 +401,7 @@ class SkeletonManager(object):
     #        print ' >rgb skel image received'
     #        self._flag_rgb_sk = 1
 
-   def depth_callback(self, msg):
+    def depth_callback(self, msg):
         # self.depth_msg = msg
         depth_image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
         depth_array = np.array(depth_image, dtype=np.float32)
