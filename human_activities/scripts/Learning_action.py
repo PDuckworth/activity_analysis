@@ -27,6 +27,7 @@ class Learning_server(object):
             self.ol.initialise_new_day(self.run_cnt)
 
             """get SOMA2 Objects"""
+            self.ol.get_soma_rois()
             self.ol.get_soma_objects()
 
             """load skeleton detections over all frames"""

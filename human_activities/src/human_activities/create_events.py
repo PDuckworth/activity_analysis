@@ -207,6 +207,12 @@ def get_event(recording, path, soma_objects, config):
     d_sk = os.path.join(d1, 'skeleton/')
     d_robot = os.path.join(d1, 'robot/')
 
+    # If recording has been restricted with ROIs:
+    if os.path.isfile(os.path.join(d1, 'meta.txt')):
+        f1 = open(os.path.join(d1, 'meta.txt'), 'r')
+        for count, line in enumerate(f1):
+            if count == 0: region = line.split('\n')[0].split(':')[1]
+
     try:
         """information stored in the filename"""
         uuid = recording.split('_')[-1]
@@ -370,9 +376,11 @@ def get_event(recording, path, soma_objects, config):
         # for i in e.sorted_timestamps:
         #     print i, e.map_frame_data[i]['head'], e.map_frame_data[i]['left_hand']#, e.map_frame_data[i]['right_hand'] #e.skeleton_data[i]['right_hand'], e.map_frame_data[i]['right_hand']   , yaw, pitch
         # sys.exit(1)
-
-        e.get_world_frame_trace(soma_objects)
-        utils.save_event(e, "Learning/Events")
+        if len(e.sorted_timestamps) >= 5:
+            e.get_world_frame_trace(soma_objects)
+            utils.save_event(e, "Learning/Events")
+        else:
+            print "  >dont save me - recording too short."
 
 
 def get_soma_objects():
@@ -395,8 +403,17 @@ def get_soma_objects():
     'Sink_28': (-2.754, -15.645, 1.046),                                    # fixed
     'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
     'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
-    'Double_doors_112': (-8.365, -18.440, 1.021)
+    'Double_doors_112': (-8.365, -18.440, 1.021),
+    'robot_lab_Majd_desk': (-7.3, -33.5, 1.2),
+    'robot_lab_Baxter_desk':(-4.4, -31.8, 1.2),
+    'robot_lab_Poster':(-4.3, -34.0, 1.2)
     }
+    objects['Robot lab'] = {
+    'robot_lab_Majd_desk': (-7.3, -33.5, 1.2),
+    'robot_lab_Baxter_desk':(-4.4, -31.8, 1.2),
+    'robot_lab_Poster':(-4.3, -34.0, 1.2)
+    }
+
     return objects
 #
 # def get_soma_objects():

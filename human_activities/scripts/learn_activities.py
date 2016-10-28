@@ -32,12 +32,13 @@ class Offline_ActivityLearning(object):
 
         self.load_config()  # loads all the learning parameters from a config file
         self.path = '/home/' + getpass.getuser() + '/SkeletonDataset/'
-        # self.recordings = "no_consent"
-        self.recordings = "ecai_Recorded_Data"
+        self.recordings = "no_consent"
+        # self.recordings = "ecai_Recorded_Data"
         self.make_init_filepaths()  # Define all file paths
 
         self.soma_map = soma_map
         self.soma_conf = soma_conf
+        self.soma_roi_config = roi_config
         self.date = str(datetime.datetime.now().date())
 
         """If you want to rerun all the learning each time (not necessary)"""
@@ -98,27 +99,27 @@ class Offline_ActivityLearning(object):
         if not os.path.isdir(self.accu_path): os.system('mkdir -p ' + self.accu_path)
 
     def get_soma_rois(self):
-        """Find all the ROIs and restrict objects using membership.
+        """Try to use only objects in the same ROI as the detection (if possible)
         """
-        soma_map = "collect_data_map_cleaned"
-        # soma_config = "test"
-        # query = {"map":soma_map, "config":soma_config}
-        all_rois = []
-        ret = self.soma_roi_store.query(SOMA2ROIObject._type)
-        for (roi, meta) in ret:
-            if roi.map_name != soma_map: continue
+        self.rois = {}
+        for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
+            if roi.map_name != self.soma_map: continue
+            if roi.config != self.roi_conf: continue
             if roi.geotype != "Polygon": continue
-            all_rois.append(roi)
-        return all_rois
+            k = roi.type + "_" + roi.id
+            self.rois[k] = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
+        #print ">>", self.rois
 
     def get_soma_objects(self):
         """srv call to mongo and get the list of new objects and locations"""
 
+        """%todo: restrict the objects to only those in the same ROI"""
         msg_store = MessageStoreProxy(database="soma2data", collection="soma2")
         objs = msg_store.query(SOMA2Object._type, message_query={"map_name":self.soma_map,"config":self.soma_conf})
         print "queried soma2 objects >> ", objs
         self.soma_objects = ce.get_soma_objects()
         print "hard coded objects >> ", [self.soma_objects[r].keys() for r in self.soma_objects.keys()]
+
 
     # def get_skeletons_from_mongodb(self):
     #     """Query the database for the skeleton pose sequences"""
