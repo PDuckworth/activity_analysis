@@ -17,12 +17,12 @@ class Learning_server(object):
         self._as.start()
 
         self.ol = Offline_ActivityLearning(rerun_all=0)
-
         self.run_cnt = 0
 
-    def execute(self, goal):
 
+    def execute(self, goal):
         self.run_cnt+=1
+
         while not self._as.is_preempt_requested():
             self.ol.initialise_new_day(self.run_cnt)
 

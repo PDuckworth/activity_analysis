@@ -7,13 +7,16 @@
     <arg name="outtopic" default="/skeleton_data/incremental_reduced"/>
   -->
     <arg name="rec_rgb" default="True"/>
-    <arg name="max_frames" default="1000"/>
-    <arg name="frame_rate_reduce" default="3"/>
-    <arg name="consent_num_frames" default="1000"/>
+    <arg name="max_frames" default="500"/>              <!--Roughly 2 mins.-->
+    <arg name="frame_rate_reduce" default="8"/>         <!--Equivilant to about 3-4Hz.-->
+    <arg name="frame_rate_reduce_consent" default="3"/> <!--Dont use these to learn - so can be higher frame rate-->
+    <arg name="consent_num_frames" default="1000"/>     <!--Equivilant to 100 seconds of recording-->
     <arg name="log_to_mongo" default="True"/>
+
     <arg name="soma_map" default="collect_data_map_cleaned"/>
     <arg name="soma_config" default="test"/>
-    <arg name="use_roi" default="False"/>
+    <arg name="use_roi" default="True"/>
+    <arg name="roi_config" default="test"/>
 
   <!-- Drops human pose estimate msgs to be logged - check topic_tools drop-->
   <!-- Don't use this - drop will intefer with uuid's of the tracker :(
@@ -31,12 +34,13 @@
        <param name="soma_map" value="$(arg soma_map)" type="string"/>
        <param name="soma_config" value="$(arg soma_config)" type="string"/>
        <param name="use_roi" value="$(arg use_roi)" type="bool"/>
+       <param name="roi_config" value="$(arg roi_config)" type="string"/>
 	</node>
 
   <!-- TSC Recording RGB action server which requests consent -->
 	<node pkg="record_skeletons_action" type="skeleton_action.py" name="skeleton_action" output="screen">
        <param name="consent_num_frames" value="$(arg consent_num_frames)" type="int"/>
-       <param name="frame_rate_reduce" value="$(arg frame_rate_reduce)" type="int"/>
+       <param name="frame_rate_reduce_consent" value="$(arg frame_rate_reduce_consent)" type="int"/>
        <param name="soma_map" value="$(arg soma_map)" type="string"/>
        <param name="soma_config" value="$(arg soma_config)" type="string"/>
 	</node>

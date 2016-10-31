@@ -31,6 +31,7 @@ class SkeletonManager(object):
         self.accumulate_robot = {} # accumulates multiple skeleton msg
         self.sk_mapping = {} # does something in for the image logging
 
+
         self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
         self.soma_config = rospy.get_param("~soma_config", "test")
 
@@ -39,7 +40,8 @@ class SkeletonManager(object):
         self.robot_pose = Pose()   # pose of the robot
         self.ptu_pan = self.ptu_tilt = 0.0
 
-        self.reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce", 3)
+        self.reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce", 8) # roughly: 3-4Hz
+        self.max_num_frames = rospy.get_param("~max_frames", 500)  # roughly 2mins
         self.soma_roi_store = MessageStoreProxy(database='soma2data', collection='soma2_roi')
 
         # directory to store the data
@@ -65,9 +67,10 @@ class SkeletonManager(object):
         self._message_store = rospy.get_param("~message_store", "people_skeleton")
         self._database = rospy.get_param("~database", "message_store")
         self.camera = "head_xtion"
-        self.max_num_frames = rospy.get_param("~max_frames", 1000)
 
         self.restrict_to_rois = rospy.get_param("~use_roi", False)
+        self.roi_config = rospy.get_param("~roi_config", "test")
+
         print "restricted to soma ROI: ", self.restrict_to_rois
         if self.restrict_to_rois:
             self.get_soma_rois()
@@ -100,7 +103,7 @@ class SkeletonManager(object):
         self.rois = {}
         for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
             if roi.map_name != self.soma_map: continue
-            if roi.config != self.soma_config: continue
+            if roi.config != self.roi_config: continue
             if roi.geotype != "Polygon": continue
             k = roi.type + "_" + roi.id
             self.rois[k] = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])

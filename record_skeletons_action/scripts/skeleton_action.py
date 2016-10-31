@@ -48,7 +48,7 @@ class skeleton_server(object):
                                                     execute_cb=self.execute_cb, auto_start=False)
         self._as.start()
 
-        reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce", 3)
+        reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce_consent", 3)
         self.number_of_frames_before_consent_needed = rospy.get_param("~consent_num_frames", num_of_frames)
         rospy.loginfo("Required num of frames: %s" % self.number_of_frames_before_consent_needed)
         rospy.loginfo("Frame rate reduced by /%s" % reduce_frame_rate_by)
