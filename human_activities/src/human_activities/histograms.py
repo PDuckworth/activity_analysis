@@ -39,7 +39,6 @@ def create_temp_histograms(qsr_path, accu_path, global_codebook, all_graphlets):
 
         # print global_codebook, e.temp_histogram, all_graphlets
         utils.save_event(e, "Learning/Histograms")
-
     return global_codebook, all_graphlets
 
 def worker_padd(chunk):

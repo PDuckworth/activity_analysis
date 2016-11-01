@@ -1,0 +1,2 @@
+string last_date_used
+string last_uuid_used

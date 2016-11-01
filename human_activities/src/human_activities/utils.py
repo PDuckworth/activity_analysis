@@ -14,14 +14,13 @@ def save_event(e, loc=None):
     if loc != None:
         p[4] = loc
     new_path = '/'.join(p[:-1])
-
     if not os.path.isdir(new_path):
         os.system('mkdir -p ' + new_path)
 
     file_name = p[-1]
     if e.label != "NA":
-        file_name += p[-1] + "_" + repr(e.start_frame) + "_" + repr(e.end_frame)
-
+        file_name += "_" + e.label + "_" + repr(e.start_frame) + "_" + repr(e.end_frame)
+        # file_name += p[-1] + "_" + repr(e.start_frame) + "_" + repr(e.end_frame)
     f = open(os.path.join(new_path, file_name +".p"), "w")
     pickle.dump(e, f, 2)
     f.close()

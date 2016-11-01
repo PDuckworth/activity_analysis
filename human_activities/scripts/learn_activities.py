@@ -11,12 +11,12 @@ import rospy
 import numpy as np
 import cPickle as pickle
 import multiprocessing as mp
-from soma2_msgs.msg import SOMA2Object
+from soma2_msgs.msg import SOMA2Object, SOMA2ROIObject
 from soma_manager.srv import SOMA2QueryObjs
-from mongodb_store.message_store import MessageStoreProxy
 from skeleton_tracker.msg import skeleton_message
 #from activity_data.msg import SkeletonComplete
-
+from shapely.geometry import Polygon, Point
+from mongodb_store.message_store import MessageStoreProxy
 import human_activities.create_events as ce
 import human_activities.encode_qsrs as eq
 import human_activities.histograms as h
@@ -27,61 +27,15 @@ import human_activities.utils as utils
 
 class Offline_ActivityLearning(object):
 
-    def __init__(self, soma_map="", soma_conf="", rerun_all=0):
+    def __init__(self, path, recordings):
         print "initialise activity learning action class"
 
+        self.path = path
+        self.recordings = recordings
         self.load_config()  # loads all the learning parameters from a config file
         self.path = '/home/' + getpass.getuser() + '/SkeletonDataset/'
-        self.recordings = "no_consent"
-        # self.recordings = "ecai_Recorded_Data"
         self.make_init_filepaths()  # Define all file paths
-
-        self.soma_map = soma_map
-        self.soma_conf = soma_conf
-        self.soma_roi_config = roi_config
-        self.date = str(datetime.datetime.now().date())
-
-        """If you want to rerun all the learning each time (not necessary)"""
-        if rerun_all:
-            #Removes the skeleton pose sequence event and encoded qsr world.
-            print "removing the previous events and qsrs - due to rerun flag"
-            for f in os.listdir(self.qsr_path):
-                os.remove(os.path.join(self.qsr_path, f))
-            for f in os.listdir(self.events_path):
-                os.remove(os.path.join(self.events_path, f))
-
-    def initialise_new_day(self, run_cnt):
-        print "\ninitialise new day..."
-        path = os.path.join(self.path, self.recordings)
-        self.date = str(datetime.datetime.now().date())
-        print "today:", self.date
-
-        """Hack to run incrementally over ECAI dataset"""
-        if self.config['olda']['test_dataset']:
-            all_data = ['2016-04-05', '2016-04-06', '2016-04-07', '2016-04-08', '2016-04-11']
-            if run_cnt == 1: self.not_processed_dates = [all_data[0]]
-            elif run_cnt == 2: self.not_processed_dates = [all_data[1]]
-            elif run_cnt == 3: self.not_processed_dates = [all_data[2]]
-            elif run_cnt == 4: self.not_processed_dates = [all_data[3]]
-            elif run_cnt == 5: self.not_processed_dates = [all_data[4]]
-            else: self.not_processed_dates = all_data
-
-        else:
-            self.not_processed_dates = []
-            for d_cnt, date in sorted(enumerate(os.listdir(path))):
-                if os.path.isdir(os.path.join(self.hist_path, date)):
-                    print "%s already processed" % date
-                    continue
-                else:
-                    self.not_processed_dates.append(date)
-        print "learning on: ", self.not_processed_dates
-
-        try:
-            processed_dates = [date for date in sorted(os.listdir(self.accu_path))]
-            self.last_processed_date = processed_dates[-1]
-        except IndexError:
-            self.last_processed_date = None
-        print "load previous learning from: ", self.last_processed_date
+        self.recordings = recordings
 
     def load_config(self):
         """load a config file for all the learning parameters"""
@@ -104,22 +58,21 @@ class Offline_ActivityLearning(object):
         self.rois = {}
         for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
             if roi.map_name != self.soma_map: continue
-            if roi.config != self.roi_conf: continue
+            if roi.config != self.roi_config: continue
             if roi.geotype != "Polygon": continue
             k = roi.type + "_" + roi.id
             self.rois[k] = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
-        #print ">>", self.rois
+        print "ROIs: ", self.rois.keys()
 
     def get_soma_objects(self):
         """srv call to mongo and get the list of new objects and locations"""
 
         """%todo: restrict the objects to only those in the same ROI"""
         msg_store = MessageStoreProxy(database="soma2data", collection="soma2")
-        objs = msg_store.query(SOMA2Object._type, message_query={"map_name":self.soma_map,"config":self.soma_conf})
+        objs = msg_store.query(SOMA2Object._type, message_query={"map_name":self.soma_map,"config":self.soma_config})
         print "queried soma2 objects >> ", objs
         self.soma_objects = ce.get_soma_objects()
         print "hard coded objects >> ", [self.soma_objects[r].keys() for r in self.soma_objects.keys()]
-
 
     # def get_skeletons_from_mongodb(self):
     #     """Query the database for the skeleton pose sequences"""
@@ -133,45 +86,41 @@ class Offline_ActivityLearning(object):
     #
     #     return ret
 
-    def get_events(self):
+    def get_events(self, folder, uuid):
         """
         Encodes each skeleton detection into an Event() class
         FILTERS run sequentially (all effect each other):
          - Frame rate reduction applied first.
          - Filter to qsrs last.
         """
-        print "\ngetting new Events"
-        path = os.path.join(self.path, self.recordings)
-        print "directories to process: ", self.not_processed_dates
+        path = os.path.join(self.path, self.recordings, folder)
+        # try:
+            # Can we reduce this list of objects using ROI information?
+        use_objects = {}
+        for region, objects in self.soma_objects.items():
+            for ob, position in objects.items():
+                use_objects[ob] = position
+        ce.get_event(uuid, path, use_objects, self.config['events'])
+        # except:
+        #     print "recording: %s in: %s something is broken." %(uuid, path)
 
-        for d_cnt, date in enumerate(self.not_processed_dates):
-            directory = os.path.join(path, date)
 
-            for recording in os.listdir(directory):
-                try:
-                    # Can we reduce this list of objects using ROI information?
-                    use_objects = {}
-                    for region, objects in self.soma_objects.items():
-                        for ob, position in objects.items():
-                            use_objects[ob] = position
+    def encode_qsrs_sequentially(self, folder, rec):
+        """very sequential version of encode qsrs"""
+        path = os.path.join(self.events_path, folder)
+        for uuid in sorted(os.listdir(path), reverse=False):
+            if rec in uuid:
+                event = (uuid, path, self.soma_objects.values(), self.config['qsrs'])
+                eq.worker_qsrs(event)
 
-                    ce.get_event(recording, directory, use_objects, self.config['events'])
-                except:
-                    print "recording: %s in: %s something is broken." %(recording, directory)
-        print "events - done."
-
-    def encode_qsrs(self, parallel=0):
+    def encode_qsrs(self, folder):
         """check for any events which are not QSRs yet"""
-        print "\ncalculating new QSRs: %s" % self.config['qsrs']['which_qsr']
-
+        # print "\ncalculating new QSRs: %s" % self.config['qsrs']['which_qsr']
+        path = os.path.join(self.events_path, folder)
         list_of_events = []
-        for date in self.not_processed_dates:
-            path = os.path.join(self.events_path, date)
-            print " >", date
-            for recording in sorted(os.listdir(path)):
-                # region = "Kitchen"   #todo: remove this region
-                if not os.path.isfile(os.path.join(self.qsr_path, recording)):
-                    list_of_events.append((recording, path, self.soma_objects.values(), self.config['qsrs']))
+        for recording in sorted(os.listdir(path)):
+            if not os.path.isfile(os.path.join(self.qsr_path, recording)):
+                list_of_events.append((recording, path, self.soma_objects.values(), self.config['qsrs']))
 
         if len(list_of_events) > 0:
             if self.config['qsrs']['parallel']:
@@ -187,26 +136,25 @@ class Offline_ActivityLearning(object):
                     eq.worker_qsrs(event)
         print "qsrs - done"
 
-    def make_temp_histograms_online(self):
+    def make_temp_histograms_online(self, date, last_run_date):
         """Create a codebook for all previously seen unique code words"""
 
         print "\nfinding all unique code words"
-        accu_path = os.path.join(self.accu_path, self.date)
+        accu_path = os.path.join(self.accu_path, date)
 
-        if self.last_processed_date == None:
+        if last_run_date == "":
             codebook = np.array([])
             graphlets = np.array([])
         else:
-            print "last processed date: %s " % self.last_processed_date
-            prev_accu_path = os.path.join(self.accu_path, self.last_processed_date)
+            print "last run date: %s " % last_run_date
+            prev_accu_path = os.path.join(self.accu_path, last_run_date)
             with open(os.path.join(prev_accu_path, "code_book_all.p"), 'r') as f:
                 codebook = pickle.load(f)
             with open(os.path.join(prev_accu_path, "graphlets_all.p"), 'r') as f:
                 graphlets = pickle.load(f)
 
-        for date in self.not_processed_dates:
-            qsr_path = os.path.join(self.qsr_path, date)
-            codebook, graphlets = h.create_temp_histograms(qsr_path, accu_path, codebook, graphlets)
+        qsr_path = os.path.join(self.qsr_path, date)
+        codebook, graphlets = h.create_temp_histograms(qsr_path, accu_path, codebook, graphlets)
 
         if not os.path.isdir(accu_path): os.system('mkdir -p ' + accu_path)
 
@@ -221,7 +169,7 @@ class Offline_ActivityLearning(object):
         f.close()
         return
 
-    def make_term_doc_matrix(self):
+    def make_term_doc_matrix(self, date):
         """generate a term frequency matrix using the unique code words and the histograms/graphlets not yet processed"""
         print "\ngenerating term-frequency matrix:"
 
@@ -232,10 +180,9 @@ class Offline_ActivityLearning(object):
             return False
 
         list_of_histograms = []
-        for date in self.not_processed_dates:
-            hist_path = os.path.join(self.hist_path, date)
-            for recording in sorted(os.listdir(hist_path)):
-                list_of_histograms.append((recording, hist_path, len_of_code_book))
+        hist_path = os.path.join(self.hist_path, date)
+        for recording in sorted(os.listdir(hist_path)):
+            list_of_histograms.append((recording, hist_path, len_of_code_book))
 
         if self.config['hists']['parallel']:
             num_procs = mp.cpu_count()
@@ -250,7 +197,7 @@ class Offline_ActivityLearning(object):
                 print "adding to feature space: ", event[0]
                 results.append(h.worker_padd(event))
 
-        accu_path = os.path.join(self.accu_path, self.date)
+        accu_path = os.path.join(self.accu_path, date)
         uuids = [uuid for (uuid, hist) in results]
         f = open(accu_path + "/list_of_uuids.p", "w")
         pickle.dump(uuids, f)
@@ -293,18 +240,18 @@ class Offline_ActivityLearning(object):
         print "Topic Modelling - done.\n"
         return True
 
-    def online_lda_activities(self, run_cnt):
+    def online_lda_activities(self, folder, last_run_date):
         """learn online LDA topic model. """
         print "\nLearning a topic model distributions with online LDA:"
 
-        accu_path = os.path.join(self.accu_path, self.date)
-        lda_path = os.path.join(accu_path, "onlineLDA")
+        accu_path = os.path.join(self.accu_path, folder)
+        lda_path = os.path.join(accu_path, "oLDA")
         if not os.path.exists(lda_path): os.makedirs(lda_path)
 
         #load all the required data
         code_book, graphlets, feature_space = utils.load_learning_files_all(accu_path)
 
-        print "prev date: ", self.last_processed_date
+        print "prev date: ", last_run_date
         # if self.last_processed_date == None:
             # prev_accu_path = os.path.join(self.accu_path, self.last_processed_date)
 
@@ -316,7 +263,7 @@ class Offline_ActivityLearning(object):
         K = self.config['olda']['n_topics']
 
         # Initialize the algorithm with alpha=1/K, eta=1/K, tau_0=1024, kappa=0.7
-        if run_cnt == 1:
+        if last_run_date == "":
             print "initialise olda:"
             olda = onlineldavb.OnlineLDA(code_book, K, D, 1./K, 1./K, 1., 0.7)
         else:
@@ -344,8 +291,8 @@ class Offline_ActivityLearning(object):
         # Compute an estimate of held-out perplexity
 
         perwordbound = bound * feature_counts.shape[0] / (D * sum(map(sum, wordcts)))
-        print 'RUN: %d:  rho_t = %f,  held-out perplexity estimate = %f' % \
-            (run_cnt, olda._rhot, np.exp(-perwordbound))
+        print 'DATE: %s:  rho_t = %f,  held-out perplexity estimate = %f' % \
+            (folder, olda._rhot, np.exp(-perwordbound))
 
         # Save lambda, the parameters to the variational distributions
         # over topics, and gamma, the parameters to the variational
@@ -364,10 +311,7 @@ class Offline_ActivityLearning(object):
 
 if __name__ == "__main__":
     #rospy.init_node("Offline Activity Learner")
-
-    rerun = 0
-
-    o = Offline_ActivityLearning(rerun_all=rerun)
+    o = Offline_ActivityLearning()
 
     o.self.directories_to_learn_from()
     o.get_soma_objects()

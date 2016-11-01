@@ -28,7 +28,6 @@ class event(object):
         self.start_frame = start
         self.end_frame = end
         self.label = label
-
         self.sorted_timestamps = []
         self.sorted_ros_timestamps = []
         self.bad_timepoints = {}        #use for filtering
@@ -214,15 +213,15 @@ def get_event(recording, path, soma_objects, config):
             if count == 0: region = line.split('\n')[0].split(':')[1]
 
     try:
-        """information stored in the filename"""
-        uuid = recording.split('_')[-1]
+        """information stored in the filename - differently for ecai dataset"""
         date = recording.split('_')[0]
         time = recording.split('_')[1]
-    except:
-         print "recording not found"
-         return
+        uuid = recording.split('_')[2]
+    except IndexError:
+        date = ""
+        time = recording.split('_')[0]
+        uuid = recording.split('_')[1]
     print "date: %s. uid: %s. time: %s." % (date, uuid, time)
-
     labels = get_labels(d1, d_sk)
 
     for iter, (label, st, end) in labels.items():
@@ -404,14 +403,11 @@ def get_soma_objects():
     'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
     'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
     'Double_doors_112': (-8.365, -18.440, 1.021),
-    'robot_lab_Majd_desk': (-7.3, -33.5, 1.2),
-    'robot_lab_Baxter_desk':(-4.4, -31.8, 1.2),
-    'robot_lab_Poster':(-4.3, -34.0, 1.2)
     }
     objects['Robot lab'] = {
-    'robot_lab_Majd_desk': (-7.3, -33.5, 1.2),
-    'robot_lab_Baxter_desk':(-4.4, -31.8, 1.2),
-    'robot_lab_Poster':(-4.3, -34.0, 1.2)
+    # 'robot_lab_Majd_desk': (-7.3, -33.5, 1.2),
+    # 'robot_lab_Baxter_desk':(-4.4, -31.8, 1.2),
+    # 'robot_lab_Poster':(-4.3, -34.0, 1.2)
     }
 
     return objects

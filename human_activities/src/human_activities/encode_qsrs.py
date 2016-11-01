@@ -17,7 +17,6 @@ from qsrlib_qstag.utils import *
 
 def worker_qsrs(chunk):
     (file_, path, soma_objects, config) = chunk
-
     e = utils.load_e(path, file_)
 
     dynamic_args = {}
