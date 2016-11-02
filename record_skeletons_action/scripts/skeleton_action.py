@@ -121,18 +121,17 @@ class skeleton_server(object):
         self.generate_viewpoints()
 
         nav_fail, rem_duration = self.goto(duration)
-
-        consented_uuid = ""
-        request_consent = 0
-
-        rospy.loginfo("init recording page and skeleton pub")
-        self.signal_start_of_recording()
-        self.sk_publisher.reinisialise()
         self.sk_publisher.max_num_frames =  self.number_of_frames_before_consent_needed
 
         while (end - start).secs < rem_duration.secs and request_consent == 0:
-            if self._as.is_preempt_requested():
-                 break
+            consented_uuid = ""
+            request_consent = 0
+
+            rospy.loginfo("init recording page and skeleton pub")
+            self.signal_start_of_recording()
+            self.sk_publisher.reinisialise()
+
+            if self._as.is_preempt_requested(): break
 
             # print "1 ", self.sk_publisher.accumulate_data.keys()
             for cnt, (uuid, incr_msgs) in enumerate(self.sk_publisher.accumulate_data.items()):
@@ -269,13 +268,18 @@ class skeleton_server(object):
             self.nav_client.wait_for_result()
             res = self.nav_client.get_result()
 
-            if res.outcome != 'succeeded':
-                rospy.loginfo("nav goal fail: %s" % str(res.outcome))
+            try:
+                result = res.outcome
+            except AttributeError:
+                rospy.loginfo("No res from nav client: %s" % res)
+                result = ""
+
+            if result != 'succeeded':
+                rospy.loginfo("nav goal fail: %s" % result)
                 end = rospy.Time.now()
                 continue
             else:
-                rospy.loginfo("Reached nav goal: %s" % str(res.outcome))
-
+                rospy.loginfo("Reached nav goal: %s" % result)
                 obj = self.selected_object_pose
                 dist_z = abs(self.ptu_height - obj.position.z)
                 p = self.possible_poses[ind]

@@ -252,8 +252,7 @@ class Offline_ActivityLearning(object):
         code_book, graphlets, feature_space = utils.load_learning_files_all(accu_path)
 
         print "prev date: ", last_run_date
-        # if self.last_processed_date == None:
-            # prev_accu_path = os.path.join(self.accu_path, self.last_processed_date)
+        prev_lda_path = os.path.join(self.accu_path, last_run_date, "oLDA")
 
         # The number of documents to analyze each iteration
         batchsize = feature_space.shape[0]
@@ -268,7 +267,7 @@ class Offline_ActivityLearning(object):
             olda = onlineldavb.OnlineLDA(code_book, K, D, 1./K, 1./K, 1., 0.7)
         else:
             #load the previous OLDA class
-            with open(lda_path + "/olda.p", 'r') as f:
+            with open(prev_lda_path + "/olda.p", 'r') as f:
                 olda = pickle.load(f)
             print "previous lamda shape:", olda._lambda.shape
             print "new lam shape:", olda._lambda.shape[0], len(code_book)

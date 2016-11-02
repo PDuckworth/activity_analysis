@@ -49,6 +49,7 @@ catkin_python_setup()
 add_message_files(
    FILES
    LastKnownLearningPoint.msg
+   QSRProgress.msg
 #   Message2.msg
 )
 

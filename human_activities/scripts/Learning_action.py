@@ -7,7 +7,7 @@ import getpass, datetime
 from std_msgs.msg import String, Header
 from mongodb_store.message_store import MessageStoreProxy
 from learn_activities import Offline_ActivityLearning
-from human_activities.msg import LearningActivitiesAction, LearningActivitiesResult, LastKnownLearningPoint
+from human_activities.msg import LearningActivitiesAction, LearningActivitiesResult, LastKnownLearningPoint, QSRProgress
 
 class Learning_server(object):
     def __init__(self, name= "LearnHumanActivities"):
@@ -33,57 +33,61 @@ class Learning_server(object):
         self.last_run_date = ""
         self.last_run_uuid = ""
 
+    def cond(self):
+        if self._as.is_preempt_requested() or (rospy.Time.now() - self.start).secs > self.duration.secs:
+            return True
+        return False
+
     def execute(self, goal):
-
         print "\nLearning Goal: %s seconds." % goal.duration.secs
-        duration = goal.duration
-        start = rospy.Time.now()
-        end = rospy.Time.now()
+        self.duration = goal.duration
+        self.start = rospy.Time.now()
+        self.end = rospy.Time.now()
 
-        while (end - start).secs < duration.secs:
-            while not self._as.is_preempt_requested():
-                # if self._as.is_preempt_requested(): break
+        while (self.end - self.start).secs < self.duration.secs:
+            self.get_dates_to_process()
+            self.ol.get_soma_rois()      #get SOMA ROI Info
+            self.ol.get_soma_objects()   #get SOMA Objects Info
 
-                self.get_dates_to_process()
-                self.ol.get_soma_rois()      #get SOMA ROI Info
-                self.ol.get_soma_objects()   #get SOMA Objects Info
+            for date in self.not_processed_dates:
+                if self.cond(): break
+                print "\nprocessing date: %s " % date
 
-                for date in self.not_processed_dates:
-                    # if self._as.is_preempt_requested(): break
+                for uuid in self.get_uuids_to_process(date):
+                    if self.cond(): break
 
-                    print "\nprocessing date: %s " % date
-                    print "<<", self.get_uuids_to_process(date)
+                    self.ol.get_events(date, uuid)      #convert skeleton into world frame coords
+                    self.ol.encode_qsrs_sequentially(date, uuid) #encode the observation into QSRs
+                    self.update_qsr_progress(date, uuid)
 
-                    for uuid in self.get_uuids_to_process(date):
-                        self.ol.get_events(date, uuid)  #convert skeleton into world frame coords
-                        # if self._as.is_preempt_requested(): if self._break(date, uuid, "events"):
-
-                        self.ol.encode_qsrs_sequentially(date, uuid) #encode the observation into QSRs
-                        # if self._as.is_preempt_requested(): self._break(date, uuid, "qsrs")
-
+                if not self.cond():
                     self.ol.make_temp_histograms_online(date, self.last_run_date)  # create histograms with local code book
-                    # if self._as.is_preempt_requested(): self._break(date, uuid, "code-book")
 
+                if not self.cond():
                     self.ol.make_term_doc_matrix(date)  # create histograms with gloabl code book
-                    # if self._as.is_preempt_requested(): self._break(date, uuid, "term-doc")
 
+                if not self.cond():
                     self.ol.online_lda_activities(date, self.last_run_date)  # run the new feature space into oLDA
-                    # if self._as.is_preempt_requested(): self._break(date, uuid, "olda")
-
                     rospy.loginfo("completed learning for %s" % date)
-                    print "D", uuid
-                    self.update_last_learning(date, uuid)
-                    end = rospy.Time.now()
+
+            self.end = rospy.Time.now()
+
+            if self._as.is_preempt_requested():
+                rospy.loginfo('%s: Preempted' % self._action_name)
+                self._as.set_preempted(LearningActivitiesResult())
+
+            elif (rospy.Time.now() - self.start).secs > self.duration.secs:
+                rospy.loginfo('%s: Timed out' % self._action_name)
+                self._as.set_preempted(LearningActivitiesResult())
+
+            else:
+                self.update_last_learning(date, uuid)
 
                 self._as.set_succeeded(LearningActivitiesResult())
-                return
-            self.update_last_learning(date, uuid)
+
+            return
+
         return
-
-    # def _break(self, date, uuid, info):
-    #     """log where the learning got upto then break"""
-    #     self.update_last_learning(date, uuid)
-
 
     def get_uuids_to_process(self, folder):
         return [uuid for uuid in sorted(os.listdir(os.path.join(self.path, self.recordings, folder)), reverse=False)]
@@ -92,10 +96,9 @@ class Learning_server(object):
         """ Find the sequence of date folders (on disc) which have not been processed into QSRs and Learned on.
         ret: self.not_processed_dates - List of date folders to use
         """
-        for (ret, meta) in self.msg_store.query(String._type):
-
-            if ret.data > self.last_run_date:
-                self.last_run_date = ret.data
+        for (ret, meta) in self.msg_store.query(LastKnownLearningPoint._type):
+            if ret.last_date_used > self.last_run_date:
+                self.last_run_date = ret.last_date_used
         print "last learned date: ", self.last_run_date
 
         self.not_processed_dates = []
@@ -104,14 +107,16 @@ class Learning_server(object):
                 self.not_processed_dates.append(date)
         print "not processed yet:", self.not_processed_dates
 
+    def update_qsr_progress(self, date, uuid):
+        query={"type":"QSRProgress"}
+        msg = QSRProgress(type="QSRProgress", date=date, uuid=uuid)
+        self.msg_store.update(msg, query)
 
     def update_last_learning(self, date, uuid):
         self.last_run_date = date
         self.last_run_uuid = uuid
-        print date, uuid
         msg = LastKnownLearningPoint(last_date_used=self.last_run_date, last_uuid_used=self.last_run_uuid)
-
-        print "adding %s: %s to activity msg store" % (msg.last_date_used, msg.last_uuid_used)
+        # print "adding %s: %s to activity msg store" % (msg.last_date_used, msg.last_uuid_used)
         self.msg_store.insert(msg)
 
 
