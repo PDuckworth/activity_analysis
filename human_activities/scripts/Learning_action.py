@@ -30,6 +30,9 @@ class Learning_server(object):
         self.ol.soma_roi_store = MessageStoreProxy(database='soma2data', collection='soma2_roi')
         self.msg_store = MessageStoreProxy(database='message_store', collection='activity_learning_stats')
 
+        self.qsr_progress_date = ""
+        self.qsr_progress_uuid = ""
+
         self.last_run_date = ""
         self.last_run_uuid = ""
 
@@ -68,6 +71,7 @@ class Learning_server(object):
 
                 if not self.cond():
                     self.ol.online_lda_activities(date, self.last_run_date)  # run the new feature space into oLDA
+                    self.update_last_learning(date)
                     rospy.loginfo("completed learning for %s" % date)
 
             self.end = rospy.Time.now()
@@ -81,43 +85,43 @@ class Learning_server(object):
                 self._as.set_preempted(LearningActivitiesResult())
 
             else:
-                self.update_last_learning(date, uuid)
-
+                rospy.loginfo('%s: Completed' % self._action_name)
                 self._as.set_succeeded(LearningActivitiesResult())
-
             return
-
         return
 
     def get_uuids_to_process(self, folder):
         return [uuid for uuid in sorted(os.listdir(os.path.join(self.path, self.recordings, folder)), reverse=False)]
 
     def get_dates_to_process(self):
-        """ Find the sequence of date folders (on disc) which have not been processed into QSRs and Learned on.
+        """ Find the sequence of date folders (on disc) which have not been processed into QSRs.
         ret: self.not_processed_dates - List of date folders to use
+        Note: if preempted on one date, next run will currently skip that date folders ie. >
         """
-        for (ret, meta) in self.msg_store.query(LastKnownLearningPoint._type):
-            if ret.last_date_used > self.last_run_date:
-                self.last_run_date = ret.last_date_used
-        print "last learned date: ", self.last_run_date
+        for (ret, meta) in self.msg_store.query(QSRProgress._type):
+            if ret.type != "QSRProgress": continue
+            if ret.date > self.qsr_progress_date:
+                self.qsr_progress_date = ret.date
+                self.qsr_progress_uuid = ret.uuid
 
+        print "qsr progress date: ", self.qsr_progress_date, self.qsr_progress_uuid
         self.not_processed_dates = []
         for date in sorted(os.listdir(os.path.join(self.path, self.recordings)), reverse=False):
-            if date > self.last_run_date:
+            if date > self.qsr_progress_date:
                 self.not_processed_dates.append(date)
-        print "not processed yet:", self.not_processed_dates
+        print "not processed dates:", self.not_processed_dates
 
     def update_qsr_progress(self, date, uuid):
         query={"type":"QSRProgress"}
         msg = QSRProgress(type="QSRProgress", date=date, uuid=uuid)
-        self.msg_store.update(msg, query)
+        self.msg_store.update(message=msg, message_query=query, upsert=True)
 
     def update_last_learning(self, date, uuid):
         self.last_run_date = date
-        self.last_run_uuid = uuid
-        msg = LastKnownLearningPoint(last_date_used=self.last_run_date, last_uuid_used=self.last_run_uuid)
-        # print "adding %s: %s to activity msg store" % (msg.last_date_used, msg.last_uuid_used)
-        self.msg_store.insert(msg)
+        date_ran = str(datetime.datetime.now().date())
+        msg = LastKnownLearningPoint(type="oLDA", date_ran=date_ran, last_date_used=self.last_run_uuid)
+        query= {"type":"oLDA"}
+        self.msg_store.insert(message=msg, message_query=query, upsert=True)
 
 
 if __name__ == "__main__":
