@@ -146,7 +146,7 @@ class Offline_ActivityLearning(object):
             codebook = np.array([])
             graphlets = np.array([])
         else:
-            print "last run date: %s " % last_run_date
+            print "load codebook from: %s " % last_run_date
             prev_accu_path = os.path.join(self.accu_path, last_run_date)
             with open(os.path.join(prev_accu_path, "code_book_all.p"), 'r') as f:
                 codebook = pickle.load(f)
@@ -251,7 +251,7 @@ class Offline_ActivityLearning(object):
         #load all the required data
         code_book, graphlets, feature_space = utils.load_learning_files_all(accu_path)
 
-        print "prev date: ", last_run_date
+        print "load oLDA from: ", last_run_date
         prev_lda_path = os.path.join(self.accu_path, last_run_date, "oLDA")
 
         # The number of documents to analyze each iteration
@@ -290,7 +290,7 @@ class Offline_ActivityLearning(object):
         # Compute an estimate of held-out perplexity
 
         perwordbound = bound * feature_counts.shape[0] / (D * sum(map(sum, wordcts)))
-        print 'DATE: %s:  rho_t = %f,  held-out perplexity estimate = %f' % \
+        print 'data date: %s:  rho_t = %f,  held-out perplexity estimate = %f. LDA - Done\n' % \
             (folder, olda._rhot, np.exp(-perwordbound))
 
         # Save lambda, the parameters to the variational distributions
@@ -304,7 +304,7 @@ class Offline_ActivityLearning(object):
         f = open(lda_path + "/olda.p", "w")
         pickle.dump(olda, f)
         f.close()
-        print "Online LDA - done.\n"
+        # print "Online LDA - done.\n"
         return
 
 

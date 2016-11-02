@@ -74,10 +74,10 @@ class OnlineLDA:
 
         # Initialize the variational distribution q(beta|lambda)
         self._lambda = 1*np.random.gamma(100., 1./100., (self._K, self._W))
-        print "rand: ", self._lambda.sum(axis=1)
+        # print "rand: ", self._lambda.sum(axis=1)
         self._Elogbeta = dirichlet_expectation(self._lambda)
-        print "self._K: %s self._W: %s" % (self._K,self._W)
         self._expElogbeta = np.exp(self._Elogbeta)
+        print "self._K: %s self._W: %s" % (self._K,self._W)
 
     def add_new_features(self, new_length):
         """If the codebook increases between each run, update lamda for new features
@@ -87,8 +87,7 @@ class OnlineLDA:
         # new_lambda = np.ones((self._lambda.shape[0], new_length))/self._lambda.sum(axis=1)
         new_lambda = np.ones((self._lambda.shape[0], new_length))/self._lambda.shape[1]
         diff = new_lambda.shape[1] - self._lambda.shape[1]
-
-        print "D", diff, self._lambda.sum(axis=1), "\n",    new_lambda
+        # print "diff: ", diff, self._lambda.sum(axis=1), "\n",    new_lambda
 
         if diff>0:
             new_lambda[:,:-diff] = self._lambda
