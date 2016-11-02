@@ -9,15 +9,16 @@ import multiprocessing as mp
 import utils as utils
 
 
-def create_temp_histograms(qsr_path, accu_path, global_codebook, all_graphlets):
+def create_temp_histograms(qsr_path, accu_path, global_codebook, all_graphlets, batch):
     """sequentially create a temporary histogram whilst
     generating the codebook from observations"""
-
     for e_cnt, event_file in sorted(enumerate(os.listdir(qsr_path))):
-        e = utils.load_e(qsr_path, event_file)
 
+        if event_file.replace(".p","") not in batch: continue
+        e = utils.load_e(qsr_path, event_file)
+        
         if len(e.qsr_object_frame.qstag.graphlets.histogram) == 0:
-            print "removed:", e_cnt, event_file
+            print "len 0:", e_cnt, event_file
             continue
         e.temp_histogram = np.array([0] * (global_codebook.shape[0]))
 
@@ -36,7 +37,7 @@ def create_temp_histograms(qsr_path, accu_path, global_codebook, all_graphlets):
                     e.temp_histogram = np.append(e.temp_histogram, freq)
                     all_graphlets = np.append(all_graphlets, f.graphlets[hash])
                     # print "\n>", hash, f.graphlets[hash]
-
+        # print "> ",len(e.temp_histogram)
         # print global_codebook, e.temp_histogram, all_graphlets
         utils.save_event(e, "Learning/Histograms")
     return global_codebook, all_graphlets

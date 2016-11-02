@@ -67,14 +67,15 @@ class event(object):
                 f_data[joint_id][dim] = filtered_values
 
                 if dim is "z" and 0 in filtered_values:
-                    print "Z should never be 0. (distance to camera)."
-                    vis = True
+                    print ">> Z should never be 0. (distance to camera)."
+                    return False
+                    #vis = True
 
                 if vis and "hand" in joint_id:
                     print joint_id
                     title1 = 'input %s position: %s' % (joint_id, dim)
                     title2 = 'filtered %s position: %s' % (joint_id, dim)
-                    plot_the_results(values, filtered_values, title1, title2)
+                    #plot_the_results(values, filtered_values, title1, title2)
 
             # Create a QSRLib format list of Object States (for each joint id)
             for cnt, t in enumerate(self.sorted_timestamps):
@@ -101,7 +102,7 @@ class event(object):
         # #Add all the joint IDs into the World Trace
         for joint_id, obj in ob_states.items():
             self.camera_world.add_object_state_series(obj)
-
+        return True
 
     def apply_mean_filter_old(self, window_length=3):
         """Once obtained the joint x,y,z coords.
@@ -221,7 +222,7 @@ def get_event(recording, path, soma_objects, config):
         date = ""
         time = recording.split('_')[0]
         uuid = recording.split('_')[1]
-    print "date: %s. uid: %s. time: %s." % (date, uuid, time)
+    print "date: %s. time: %s. uid: %s. " % (date, time, uuid) , 
     labels = get_labels(d1, d_sk)
 
     for iter, (label, st, end) in labels.items():
@@ -296,7 +297,7 @@ def get_event(recording, path, soma_objects, config):
 
         """ apply a skeleton data filter and create a QSRLib.World_Trace object"""
         # e.apply_mean_filter(window_length=config['joints_mean_window'])
-        e.apply_median_filter(config['joints_mean_window'])
+        if not e.apply_median_filter(config['joints_mean_window']): return
 
         """ read robot odom data"""
         r_files = [f for f in os.listdir(d_robot) if os.path.isfile(os.path.join(d_robot, f))]
@@ -373,43 +374,43 @@ def get_event(recording, path, soma_objects, config):
                 e.map_frame_data[frame][joint] = j
 
         # for i in e.sorted_timestamps:
-        #     print i, e.map_frame_data[i]['head'], e.map_frame_data[i]['left_hand']#, e.map_frame_data[i]['right_hand'] #e.skeleton_data[i]['right_hand'], e.map_frame_data[i]['right_hand']   , yaw, pitch
+            # print i, e.map_frame_data[i]['head'], e.map_frame_data[i]['left_hand']#, e.map_frame_data[i]['right_hand'] #e.skeleton_data[i]['right_hand'], e.map_frame_data[i]['right_hand']   , yaw, pitch
         # sys.exit(1)
         if len(e.sorted_timestamps) >= 5:
             e.get_world_frame_trace(soma_objects)
             utils.save_event(e, "Learning/Events")
+            return True
         else:
             print "  >dont save me - recording too short."
-
+            return False
 
 def get_soma_objects():
     objects = {}
-    objects['Kitchen'] = {}
-    objects['Long_room'] = {}
+    #objects['Kitchen'] = {}
+    #objects['Long_room'] = {}
     objects['Robot_lab'] = {}
-    objects['Staff_Room'] = {}
+    #objects['Staff_Room'] = {}
 
     # kitchen
-    objects['Kitchen'] = {
-    'Printer_console_11': (-8.957, -17.511, 1.1),                           # fixed
-    'Printer_paper_tray_110': (-9.420, -18.413, 1.132),                     # fixed
-    'Microwave_3': (-4.835, -15.812, 1.0),                                  # fixed
-    'Kettle_32': (-2.511, -15.724, 1.41),                                   # fixed
-    'Tea_Pot_47': (-3.855, -15.957, 1.0),                                   # fixed
-    'Water_Cooler_33': (-4.703, -15.558, 1.132),                            # fixed
-    'Waste_Bin_24': (-1.982, -16.681, 0.91),                                # fixed
-    'Waste_Bin_27': (-1.7636072635650635, -17.074087142944336, 0.5),
-    'Sink_28': (-2.754, -15.645, 1.046),                                    # fixed
-    'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
-    'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
-    'Double_doors_112': (-8.365, -18.440, 1.021),
+    #objects['Kitchen'] = {
+    #'Printer_console_11': (-8.957, -17.511, 1.1),                           # fixed
+    #'Printer_paper_tray_110': (-9.420, -18.413, 1.132),                     # fixed
+    #'Microwave_3': (-4.835, -15.812, 1.0),                                  # fixed
+    #'Kettle_32': (-2.511, -15.724, 1.41),                                   # fixed
+    #'Tea_Pot_47': (-3.855, -15.957, 1.0),                                   # fixed
+    #'Water_Cooler_33': (-4.703, -15.558, 1.132),                            # fixed
+    #'Waste_Bin_24': (-1.982, -16.681, 0.91),                                # fixed
+    #'Waste_Bin_27': (-1.7636072635650635, -17.074087142944336, 0.5),
+    #'Sink_28': (-2.754, -15.645, 1.046),                                    # fixed
+    #'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
+    #'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
+    #'Double_doors_112': (-8.365, -18.440, 1.021),
+    #}
+    objects['Robot_lab'] = {
+    'Majd_desk_1': (-7.3, -33.5, 1.2),
+    'Baxter_desk_1': (-4.4, -31.8, 1.2),
+    'Poster_Board_1': (-4.3, -34.0, 1.2)
     }
-    objects['Robot lab'] = {
-    # 'robot_lab_Majd_desk': (-7.3, -33.5, 1.2),
-    # 'robot_lab_Baxter_desk':(-4.4, -31.8, 1.2),
-    # 'robot_lab_Poster':(-4.3, -34.0, 1.2)
-    }
-
     return objects
 #
 # def get_soma_objects():

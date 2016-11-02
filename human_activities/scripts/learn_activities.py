@@ -100,10 +100,9 @@ class Offline_ActivityLearning(object):
         for region, objects in self.soma_objects.items():
             for ob, position in objects.items():
                 use_objects[ob] = position
-        ce.get_event(uuid, path, use_objects, self.config['events'])
+        return ce.get_event(uuid, path, use_objects, self.config['events'])
         # except:
         #     print "recording: %s in: %s something is broken." %(uuid, path)
-
 
     def encode_qsrs_sequentially(self, folder, rec):
         """very sequential version of encode qsrs"""
@@ -154,7 +153,7 @@ class Offline_ActivityLearning(object):
                 graphlets = pickle.load(f)
 
         qsr_path = os.path.join(self.qsr_path, date)
-        codebook, graphlets = h.create_temp_histograms(qsr_path, accu_path, codebook, graphlets)
+        codebook, graphlets = h.create_temp_histograms(qsr_path, accu_path, codebook, graphlets, self.batch)
 
         if not os.path.isdir(accu_path): os.system('mkdir -p ' + accu_path)
 
@@ -171,7 +170,7 @@ class Offline_ActivityLearning(object):
 
     def make_term_doc_matrix(self, date):
         """generate a term frequency matrix using the unique code words and the histograms/graphlets not yet processed"""
-        print "\ngenerating term-frequency matrix:"
+        print "\ngenerating term-frequency matrix: ",
 
         try:
             len_of_code_book = self.current_len_of_codebook
@@ -185,6 +184,7 @@ class Offline_ActivityLearning(object):
             list_of_histograms.append((recording, hist_path, len_of_code_book))
 
         if self.config['hists']['parallel']:
+            print " -- in parallel."
             num_procs = mp.cpu_count()
             pool = mp.Pool(num_procs)
             chunk_size = int(np.ceil(len(list_of_histograms)/float(num_procs)))
@@ -193,8 +193,9 @@ class Offline_ActivityLearning(object):
             pool.join()
         else: # for sequential debugging:
             results = []
+            print " -- sequentially."
             for cnt, event in enumerate(list_of_histograms):
-                print "adding to feature space: ", event[0]
+                # print "building term-freq: ", event[0]
                 results.append(h.worker_padd(event))
 
         accu_path = os.path.join(self.accu_path, date)

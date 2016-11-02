@@ -33,6 +33,7 @@ def worker_qsrs(chunk):
                    'left_shoulder': 'shoulder', 'right_shoulder': 'shoulder', 'head-torso': 'tpcc-plane'}
     object_types = joint_types.copy()
     add_objects = []
+    
     for region, objects in ce.get_soma_objects().items():
         for o in objects:
             add_objects.append(o)
@@ -56,7 +57,7 @@ def worker_qsrs(chunk):
 
     req = QSRlib_Request_Message(config['which_qsr'], input_data=e.map_world, dynamic_args=dynamic_args)
     e.qsr_object_frame = qsrlib.request_qsrs(req_msg=req)
-
+	
     # print ">", e.qsr_object_frame.qstag.graphlets.histogram
     # for i in e.qsr_object_frame.qstag.episodes:
     #     print i

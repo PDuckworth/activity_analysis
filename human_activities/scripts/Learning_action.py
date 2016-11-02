@@ -3,6 +3,7 @@
 import os, sys
 import rospy
 import actionlib
+import numpy as np
 import getpass, datetime
 from std_msgs.msg import String, Header
 from mongodb_store.message_store import MessageStoreProxy
@@ -42,33 +43,47 @@ class Learning_server(object):
 
     def execute(self, goal):
         print "\nLearning Goal: %s seconds." % goal.duration.secs
+        print "batch size max: %s" %  self.ol.config['events']['batch_size']
+        
         self.duration = goal.duration
         self.start = rospy.Time.now()
         self.end = rospy.Time.now()
+        
+        #while (self.end - self.start).secs < self.duration.secs:
+        self.get_dates_to_process()
+        self.get_dates_to_learn()
 
-        while (self.end - self.start).secs < self.duration.secs:
-            self.get_dates_to_process()
-            self.get_dates_to_learn()
+        self.ol.get_soma_rois()      #get SOMA ROI Info
+        self.ol.get_soma_objects()   #get SOMA Objects Info
 
-            self.ol.get_soma_rois()      #get SOMA ROI Info
-            self.ol.get_soma_objects()   #get SOMA Objects Info
-
-            for date in self.not_processed_dates:
+        for date in self.not_processed_dates:
+            if self.cond(): break
+            uuids_to_process = self.get_uuids_to_process(date)
+            num_batches = int(np.ceil(len(uuids_to_process) / self.ol.config['events']['batch_size']))+1
+            print "\nprocessing date: %s, batches: %s " % (date, num_batches)
+			
+            for batch_ind in xrange(num_batches):
                 if self.cond(): break
-                print "\nprocessing date: %s " % date
+                st = batch_ind*self.ol.config['events']['batch_size']
+                en = (batch_ind+1)*self.ol.config['events']['batch_size']
 
-                for uuid in self.get_uuids_to_process(date):
+                batch = []
+                for uuid in uuids_to_process[st:en]:
                     if self.cond(): break
 
                     #remove any uuids you've already processed on this date
                     if date == self.qsr_progress_date:
                         if uuid <= self.qsr_progress_uuid: continue
-                            # print "already processed"
 
-                    self.ol.get_events(date, uuid)      #convert skeleton into world frame coords
-                    self.ol.encode_qsrs_sequentially(date, uuid) #encode the observation into QSRs
-                    self.update_qsr_progress(date, uuid)
+                    if self.ol.get_events(date, uuid):                #convert skeleton into world frame coords
+                        self.ol.encode_qsrs_sequentially(date, uuid)  #encode the observation into QSRs
+                        self.update_qsr_progress(date, uuid)
+                        batch.append(uuid)
 
+                #restrict the learning to only use this batch of uuids
+                if len(batch) == 0: break
+                
+                self.ol.batch = batch
                 if date == self.last_learn_date:
                     if self.last_learn_success: continue
 
@@ -81,23 +96,23 @@ class Learning_server(object):
                 if not self.cond():
                     self.ol.online_lda_activities(date, self.last_learn_date)  # run the new feature space into oLDA
                     self.update_last_learning(date, True)
-                    rospy.loginfo("completed learning for %s" % date)
+                    rospy.loginfo("completed learning for batch %s/%s on %s " % (batch_ind, num_batches, date))
 
-            self.end = rospy.Time.now()
+                self.end = rospy.Time.now()
 
-            if self._as.is_preempt_requested():
-                rospy.loginfo('%s: Preempted' % self._action_name)
-                self._as.set_preempted(LearningActivitiesResult())
+        if self._as.is_preempt_requested():
+            rospy.loginfo('%s: Preempted' % self._action_name)
+            self._as.set_preempted(LearningActivitiesResult())
 
-            elif (rospy.Time.now() - self.start).secs > self.duration.secs:
-                rospy.loginfo('%s: Timed out' % self._action_name)
-                self._as.set_preempted(LearningActivitiesResult())
+        elif (rospy.Time.now() - self.start).secs > self.duration.secs:
+            rospy.loginfo('%s: Timed out' % self._action_name)
+            self._as.set_preempted(LearningActivitiesResult())
 
-            else:
-                rospy.loginfo('%s: Completed' % self._action_name)
-                self._as.set_succeeded(LearningActivitiesResult())
-            return
+        else:
+            rospy.loginfo('%s: Completed' % self._action_name)
+            self._as.set_succeeded(LearningActivitiesResult())
         return
+
 
     def get_uuids_to_process(self, folder):
         return [uuid for uuid in sorted(os.listdir(os.path.join(self.path, self.recordings, folder)), reverse=False)]
