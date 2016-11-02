@@ -33,8 +33,7 @@ class Learning_server(object):
         self.qsr_progress_date = ""
         self.qsr_progress_uuid = ""
 
-        self.last_run_date = ""
-        self.last_run_uuid = ""
+        self.last_learn_date = ""
 
     def cond(self):
         if self._as.is_preempt_requested() or (rospy.Time.now() - self.start).secs > self.duration.secs:
@@ -49,6 +48,8 @@ class Learning_server(object):
 
         while (self.end - self.start).secs < self.duration.secs:
             self.get_dates_to_process()
+            self.get_dates_to_learn()
+
             self.ol.get_soma_rois()      #get SOMA ROI Info
             self.ol.get_soma_objects()   #get SOMA Objects Info
 
@@ -64,13 +65,13 @@ class Learning_server(object):
                     self.update_qsr_progress(date, uuid)
 
                 if not self.cond():
-                    self.ol.make_temp_histograms_online(date, self.last_run_date)  # create histograms with local code book
+                    self.ol.make_temp_histograms_online(date, self.last_learn_date)  # create histograms with local code book
 
                 if not self.cond():
                     self.ol.make_term_doc_matrix(date)  # create histograms with gloabl code book
 
                 if not self.cond():
-                    self.ol.online_lda_activities(date, self.last_run_date)  # run the new feature space into oLDA
+                    self.ol.online_lda_activities(date, self.last_learn_date)  # run the new feature space into oLDA
                     self.update_last_learning(date)
                     rospy.loginfo("completed learning for %s" % date)
 
@@ -116,13 +117,22 @@ class Learning_server(object):
         msg = QSRProgress(type="QSRProgress", date=date, uuid=uuid)
         self.msg_store.update(message=msg, message_query=query, upsert=True)
 
-    def update_last_learning(self, date, uuid):
-        self.last_run_date = date
+    def update_last_learning(self, date):
+        #%todo: add success rate?
+        self.last_learn_date = date
         date_ran = str(datetime.datetime.now().date())
-        msg = LastKnownLearningPoint(type="oLDA", date_ran=date_ran, last_date_used=self.last_run_uuid)
-        query= {"type":"oLDA"}
-        self.msg_store.insert(message=msg, message_query=query, upsert=True)
+        msg = LastKnownLearningPoint(type="oLDA", date_ran=date_ran, last_date_used=self.last_learn_date)
+        query= {"type":"oLDA", "date_ran":date_ran}
+        self.msg_store.update(message=msg, message_query=query, upsert=True)
 
+    def get_dates_to_learn(self):
+        """ Find the sequence of date folders which need to be learned.
+        """
+        for (ret, meta) in self.msg_store.query(LastKnownLearningPoint._type):
+            if ret.type != "oLDA": continue
+            if ret.last_date_used > self.last_learn_date:
+                self.last_learn_date = ret.last_date_used
+        print "Last learned date: ", self.last_learn_date
 
 if __name__ == "__main__":
     rospy.init_node('learning_human_activities_server')
