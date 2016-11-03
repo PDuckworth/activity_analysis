@@ -13,12 +13,12 @@ import random
 import numpy as np
 
 from tf.transformations import quaternion_from_euler
-from std_msgs.msg import String, Header, Int32
+from std_msgs.msg import String, Header
 from geometry_msgs.msg import PoseStamped, Pose, Point32, Polygon, PoseArray
 from sensor_msgs.msg import JointState
 
 from std_srvs.srv import Empty, EmptyResponse
-from soma2_msgs.msg import SOMA2Object, SOMA2ROIObject
+from soma_msgs.msg import SOMAObject, SOMAROIObject
 from skeleton_tracker.msg import skeleton_message
 from skeleton_logger_with_consent import SkeletonManagerConsent
 from record_skeletons_action.msg import skeletonAction, skeletonActionResult
@@ -78,7 +78,7 @@ class skeleton_server(object):
         # mongo store
         self.msg_store = MessageStoreProxy(database='message_store', collection='consent_images')
         self.soma_id_store = MessageStoreProxy(database='message_store', collection='soma_activity_ids_list')
-        self.soma_store = MessageStoreProxy(database="soma2data", collection="soma2")
+        self.soma_store = MessageStoreProxy(database="somadata", collection="soma")
         self.views_msg_store = MessageStoreProxy(collection='activity_view_stats')
         self.soma_roi_store = MessageStoreProxy(database='soma2data', collection='soma2_roi')
 
@@ -376,7 +376,7 @@ class skeleton_server(object):
         Make sure the randomly generated viewpoints are all in this roi also - i.e. this room
         """
         self.robot_polygon = None
-        for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
+        for (roi, meta) in self.soma_roi_store.query(SOMAROIObject._type):
             if roi.map_name != self.soma_map: continue
             if roi.config != self.soma_config: continue
             if roi.geotype != "Polygon": continue
@@ -396,7 +396,7 @@ class skeleton_server(object):
 
         observe_polygon = None
         if roi_id != "":
-            for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
+            for (roi, meta) in self.soma_roi_store.query(SOMAROIObject._type):
                 if roi.map_name != self.soma_map: continue
                 if roi.config != roi_config: continue
                 if roi.roi_id != roi_id: continue
@@ -413,33 +413,38 @@ class skeleton_server(object):
     def get_soma_objects(self, target_polygon):
         """srv call to mongo and get the list of object IDs to use and locations"""
 
-        ids = self.soma_id_store.query(Int32._type)
+        ids = self.soma_id_store.query(String._type)
         ids = [id_[0].data for id_ in ids]
         print "SOMA IDs to observe >> ", ids
-        objs = self.soma_store.query(SOMA2Object._type, {"id":{"$exists":"true"}, "$where":"this.id in %s" %ids})
+        objs = self.soma_store.query(SOMAObject._type, {"id":{"$exists":"true"}, "$where":"this.id in %s" %ids})
+        for i in objs:
+            print "obj: %s" %i
+
         # dummy_objects = [(-52.29, -5.62, 1.20), (-50.01, -5.49, 1.31), (-1.68, -5.94, 1.10)]
+        # all_dummy_objects = {
+        # 'Printer_console_11': (-8.957, -17.511, 1.1),                           # fixed
+        # 'Printer_paper_tray_110': (-9.420, -18.413, 1.132),                     # fixed
+        # 'Microwave_3': (-4.835, -15.812, 1.0),                                  # fixed
+        # 'Kettle_32': (-2.511, -15.724, 1.41),                                   # fixed
+        # 'Tea_Pot_47': (-3.855, -15.957, 1.0),                                   # fixed
+        # 'Water_Cooler_33': (-4.703, -15.558, 1.132),                            # fixed
+        # 'Waste_Bin_24': (-1.982, -16.681, 0.91),                                # fixed
+        # 'Waste_Bin_27': (-1.7636072635650635, -17.074087142944336, 0.5),
+        # 'Sink_28': (-2.754, -15.645, 1.046),                                    # fixed
+        # 'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
+        # 'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
+        # 'Double_doors_112': (-8.365, -18.440, 1.021),
+        # 'robot_lab_Majd_desk': (-7.3, -33.5, 1.2),
+        # 'robot_lab_Baxter_desk':(-4.4, -31.8, 1.2),
+        # 'robot_lab_Poster':(-4.3, -34.0, 1.2)
+        # }
 
-        all_dummy_objects = {
-        'Printer_console_11': (-8.957, -17.511, 1.1),                           # fixed
-        'Printer_paper_tray_110': (-9.420, -18.413, 1.132),                     # fixed
-        'Microwave_3': (-4.835, -15.812, 1.0),                                  # fixed
-        'Kettle_32': (-2.511, -15.724, 1.41),                                   # fixed
-        'Tea_Pot_47': (-3.855, -15.957, 1.0),                                   # fixed
-        'Water_Cooler_33': (-4.703, -15.558, 1.132),                            # fixed
-        'Waste_Bin_24': (-1.982, -16.681, 0.91),                                # fixed
-        'Waste_Bin_27': (-1.7636072635650635, -17.074087142944336, 0.5),
-        'Sink_28': (-2.754, -15.645, 1.046),                                    # fixed
-        'Fridge_7': (-2.425, -16.304, 0.885),                                   # fixed
-        'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
-        'Double_doors_112': (-8.365, -18.440, 1.021),
-        'robot_lab_Majd_desk': (-7.3, -33.5, 1.2),
-        'robot_lab_Baxter_desk':(-4.4, -31.8, 1.2),
-        'robot_lab_Poster':(-4.3, -34.0, 1.2)
-        }
         # reduce all the objects to those in the same region as the robot
-
         objects_in_roi = []
-        for (obj_name, (x,y,z)) in all_dummy_objects.items():
+        # for (obj_name, (x,y,z)) in objs.items():
+        for o, meta in objs.items():
+            obj_name = o.obj_name
+            (x,y,z) = (o.x, o.y, o.z)
             if target_polygon.contains(Point([x, y])):
                 pose = Pose()
                 pose.position.x = x

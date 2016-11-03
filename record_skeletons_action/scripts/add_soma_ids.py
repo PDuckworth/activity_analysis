@@ -20,7 +20,7 @@ if __name__ == "__main__":
             # print arg
 
             print 'Add an object ID to a msg store list: %s ' %arg
-            new_obj_id = Int32(int(arg))
+            new_obj_id = String(arg)
 
             # putting something in
             soma_store.insert_named("object id %s" %arg, new_obj_id)
@@ -30,4 +30,4 @@ if __name__ == "__main__":
             # print scene, meta
 
     else:
-        print "Requires a list of SOMA2 object IDs to add to a database"
+        print "Requires a list of SOMA object IDs to add to a database"
