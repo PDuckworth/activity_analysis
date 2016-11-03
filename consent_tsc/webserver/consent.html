@@ -12,10 +12,10 @@
         // -----------------
 
         $(document).ready(function() {
-        	var t0,t1,t2;            
+        	var t0,t1,t2;
             // $("#feedback-buttons").hide();
             $("#thanks-screen").hide();
-            var timestamp = +new Date;            
+            var timestamp = +new Date;
         });
 
 
@@ -40,11 +40,11 @@
             console.log('consent: ' + val)
 
             var request = new ROSLIB.ServiceRequest({});
-         
-           
+
+
 
             var request = new ROSLIB.ServiceRequest({
-              result : val,              
+              result : val,
             });
 
             var consentClient = new ROSLIB.Service({
@@ -74,24 +74,38 @@
 
 <body>
     <div id='feedback-buttons'>
-        <h1>LUCIE DATA RECORDING</h1>
-        <p id='question'>Please can we store the data we have just recorded?
-            <cr> Please indicate your consent below.</p>
+      <div class="image">
+
+      <img style='position:relative;width:400px' src="images/image1.jpeg">
+      <h1 style='position:absolute;width:100%;top:100px;color:white'>
+        <span style="background: rgb(0, 0, 0); background: rgba(0, 0, 0, 0.7);
+   padding: 10px; ">Robot is recording video...</span></h1>
+
+      </div>
+
+        <p id='question'>Do we have your conesnt to keep the data we've just recorded?
+            <!--cr> Please indicate your consent below.</p-->
+            <br><br>
         <div class="container">
-            <a href="#" onclick="sendConsent(2)" class="myButton everything"><img src="images/image1.jpeg"></img>
-                <p>Video Data</p>
-            </a>
+          <table border=0>
+            <tr>
+              <td style="width:40%">
+            <a href="#" onclick="sendConsent(2)" class="myButton everything"><img src="images/tick.png"></img></a>
+            <td  style="width:20%">&nbsp;
             <!-- <a href="#" onclick="sendConsent(1)" class="myButton depthskel"><img src="images/image2.jpeg"></img>
              /   <p>Anonymous Video Data</p>
             </a> -->
-            <a href="#" onclick="sendConsent(0)" class="myButton nothing"><img src="images/image4.gif"></img>
-                <p>No Data Stored</p>
-            </a>
-           
+            <td  style="width:40%">
+            <a href="#" onclick="sendConsent(0)" class="myButton nothing"><img src="images/x.png"></img></a>
+          </tr>
+          <tr>
+            <td><p style='color:green;font-size:30pt'>Yes! No problem</p>
+            <td>
+            <td><p style='color:red;font-size:30pt'>Do not store anything!</p>
         </div>
     </div>
     <div id='thanks-screen'>
-        <h1>THANK YOU FOR YOUR COOPERATION</h1>
+        <h1>THANK YOU FOR YOUR COOPERATION!</h1>
     </div>
 
 </body>

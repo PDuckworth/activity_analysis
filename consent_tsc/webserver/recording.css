@@ -9,6 +9,7 @@ p {
 
 #question {
 	margin-bottom: 10px;
+	font-size: 33pt;
 }
 
 #thanks {
@@ -33,8 +34,8 @@ p {
 .container a {
     border-radius: 25px;
     margin: 8px 8px;
-    width: 390px;
-    height: 290px;
+    width: 340px;
+    height: 250px;
 	background-color: #EEEEEE;
 	color: #333333;
 	padding: 2px 6px 2px 6px;
@@ -44,7 +45,7 @@ p {
     border-left: 1px solid #CCCCCC;
     display: inline-block;
     text-decoration:none;
-    
+
 }
 
 .container a:active {
@@ -60,18 +61,18 @@ p {
 
 .myButton{
 
-	background-size: 220px 169px;
+	background-size: 250px 199px;
     background-repeat: no-repeat;
     display: block;
-    width: 220px;
-    height: 169px;
+    width: 250px;
+    height: 199px;
 
 }
 
 .myButton img {
 	    margin-top: 15px;
-	width: 360px;
-	height: 224px;
+	width: 200px;
+	/*height: 224px;*/
 }
 
 .myButton p {
@@ -80,4 +81,3 @@ p {
     color: black;
 
 }
-

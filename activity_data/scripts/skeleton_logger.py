@@ -16,7 +16,7 @@ from strands_navigation_msgs.msg import TopologicalMap
 from skeleton_tracker.msg import skeleton_tracker_state, skeleton_message, robot_message, SkeletonComplete
 from mongodb_store.message_store import MessageStoreProxy
 from tf.transformations import euler_from_quaternion
-from soma2_msgs.msg import SOMA2ROIObject
+from soma_msgs.msg import SOMAROIObject
 from shapely.geometry import Polygon, Point
 
 class SkeletonManager(object):
@@ -31,7 +31,6 @@ class SkeletonManager(object):
         self.accumulate_robot = {} # accumulates multiple skeleton msg
         self.sk_mapping = {} # does something in for the image logging
 
-
         self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
         self.soma_config = rospy.get_param("~soma_config", "test")
 
@@ -42,7 +41,7 @@ class SkeletonManager(object):
 
         self.reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce", 8) # roughly: 3-4Hz
         self.max_num_frames = rospy.get_param("~max_frames", 500)  # roughly 2mins
-        self.soma_roi_store = MessageStoreProxy(database='soma2data', collection='soma2_roi')
+        self.soma_roi_store = MessageStoreProxy(database='somadata', collection='roi')
 
         # directory to store the data
         self.date = str(datetime.datetime.now().date())
@@ -69,11 +68,17 @@ class SkeletonManager(object):
         self.camera = "head_xtion"
 
         self.restrict_to_rois = rospy.get_param("~use_roi", False)
-        self.roi_config = rospy.get_param("~roi_config", "test")
-
         print "restricted to soma ROI: ", self.restrict_to_rois
         if self.restrict_to_rois:
+            self.roi_config = rospy.get_param("~roi_config", "test")
+            # SOMA services
+            rospy.loginfo("Wait for soma roi service")
+            rospy.wait_for_service('/soma/query_rois')
+            self.soma_query = rospy.ServiceProxy('/soma/query_rois',SOMAQueryROIs)
+            rospy.loginfo("Done")
+
             self.get_soma_rois()
+
 
         # listeners
         rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
@@ -101,13 +106,14 @@ class SkeletonManager(object):
            Log the ROI along with the detection - to be used in the learning
         """
         self.rois = {}
-        for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
+        # for (roi, meta) in self.soma_roi_store.query(SOMAROIObject._type):
+        query = SOMAQueryROIsRequest(query_type=0, roiconfigs=[self.roi_config], returnmostrecent = True)
+        for roi in self.soma_query(query).rois:
             if roi.map_name != self.soma_map: continue
             if roi.config != self.roi_config: continue
             if roi.geotype != "Polygon": continue
             k = roi.type + "_" + roi.id
             self.rois[k] = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
-
 
     def convert_to_world_frame(self, pose, robot_msg):
         """Convert a single camera frame coordinate into a map frame coordinate"""
