@@ -1,0 +1,16 @@
+<launch>
+    <arg name="frame_rate_reduce_consent" default="3"/> <!--Dont use these to learn - so can be higher frame rate-->
+    <arg name="consent_num_frames" default="1000"/>     <!--Equivilant to 100 seconds of recording-->
+    <arg name="log_to_mongo" default="True"/>
+
+    <arg name="soma_map" default="collect_data_map_cleaned"/>
+    <arg name="soma_config" default="test"/>
+
+  <!-- TSC Recording RGB action server which requests consent -->
+	<node pkg="record_skeletons_action" type="skeleton_action.py" name="skeleton_action" output="screen">
+       <param name="consent_num_frames" value="$(arg consent_num_frames)" type="int"/>
+       <param name="frame_rate_reduce_consent" value="$(arg frame_rate_reduce_consent)" type="int"/>
+       <param name="soma_map" value="$(arg soma_map)" type="string"/>
+       <param name="soma_config" value="$(arg soma_config)" type="string"/>
+	</node>
+</launch>

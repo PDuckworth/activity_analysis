@@ -19,6 +19,7 @@ from sensor_msgs.msg import JointState
 
 from std_srvs.srv import Empty, EmptyResponse
 from soma_msgs.msg import SOMAObject, SOMAROIObject
+from soma_manager.srv import *
 from skeleton_tracker.msg import skeleton_message
 from skeleton_logger_with_consent import SkeletonManagerConsent
 from record_skeletons_action.msg import skeletonAction, skeletonActionResult
@@ -52,6 +53,7 @@ class skeleton_server(object):
         self.number_of_frames_before_consent_needed = rospy.get_param("~consent_num_frames", num_of_frames)
         rospy.loginfo("Required num of frames: %s" % self.number_of_frames_before_consent_needed)
         rospy.loginfo("Frame rate reduced by /%s" % reduce_frame_rate_by)
+
         self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
         self.soma_config = rospy.get_param("~soma_config", "test")
 
@@ -73,6 +75,11 @@ class skeleton_server(object):
         self.ptu_client = actionlib.SimpleActionClient('SetPTUState', PtuGotoAction)
         rospy.loginfo("Wait for PTU action server")
         self.ptu_client.wait_for_server(rospy.Duration(60))
+        rospy.loginfo("Done")
+
+        rospy.loginfo("Wait for soma roi service")
+        rospy.wait_for_service('/soma/query_rois')
+        self.soma_query = rospy.ServiceProxy('/soma/query_rois',SOMAQueryROIs)
         rospy.loginfo("Done")
 
         # mongo store
@@ -376,7 +383,9 @@ class skeleton_server(object):
         Make sure the randomly generated viewpoints are all in this roi also - i.e. this room
         """
         self.robot_polygon = None
-        for (roi, meta) in self.soma_roi_store.query(SOMAROIObject._type):
+        # for (roi, meta) in self.soma_roi_store.query(SOMAROIObject._type):  # OLD SOMA
+        query = SOMAQueryROIsRequest(query_type=0, roiconfigs=[self.soma_config], returnmostrecent = True)
+        for roi in self.soma_query(query).rois:
             if roi.map_name != self.soma_map: continue
             if roi.config != self.soma_config: continue
             if roi.geotype != "Polygon": continue
@@ -393,10 +402,12 @@ class skeleton_server(object):
         """Get the roi to observe.
            Select objects to observe based upon this region - i.e. the recommended interesting roi
         """
-
         observe_polygon = None
         if roi_id != "":
-            for (roi, meta) in self.soma_roi_store.query(SOMAROIObject._type):
+            # for (roi, meta) in self.soma_roi_store.query(SOMAROIObject._type):
+            query = SOMAQueryROIsRequest(query_type=0, roiids=[roi_id], roiconfigs=[roi_config], returnmostrecent = True)
+            response = self.soma_query(query)
+            for roi in response.rois:
                 if roi.map_name != self.soma_map: continue
                 if roi.config != roi_config: continue
                 if roi.roi_id != roi_id: continue
