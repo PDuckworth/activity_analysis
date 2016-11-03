@@ -5,6 +5,8 @@
 
     <arg name="soma_map" default="collect_data_map_cleaned"/>
     <arg name="soma_config" default="test"/>
+    <arg name="view_dist_low" default="1.5"/>
+    <arg name="view_dist_high" default="3.0"/>
 
   <!-- TSC Recording RGB action server which requests consent -->
 	<node pkg="record_skeletons_action" type="skeleton_action.py" name="skeleton_action" output="screen">
@@ -12,5 +14,7 @@
        <param name="frame_rate_reduce_consent" value="$(arg frame_rate_reduce_consent)" type="int"/>
        <param name="soma_map" value="$(arg soma_map)" type="string"/>
        <param name="soma_config" value="$(arg soma_config)" type="string"/>
-	</node>
+       <param name="view_dist_low" value="$(arg view_dist_low)" type="double"/>
+       <param name="view_dist_high" value="$(arg view_dist_high)" type="double"/>
+	 </node>
 </launch>

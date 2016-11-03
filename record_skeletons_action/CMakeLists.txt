@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   actionlib
   actionlib_msgs
+  viper_ros
 #  skeleton_tracker
 )
 
@@ -100,7 +101,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #   LIBRARIES activity_data
-   CATKIN_DEPENDS rospy std_msgs sensor_msgs geometry_msgs #skeleton_tracker
+   CATKIN_DEPENDS rospy std_msgs sensor_msgs geometry_msgs viper_ros #skeleton_tracker
 #  DEPENDS system_lib
 )
 

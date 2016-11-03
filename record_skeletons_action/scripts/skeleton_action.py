@@ -57,6 +57,16 @@ class skeleton_server(object):
         self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
         self.soma_config = rospy.get_param("~soma_config", "test")
 
+        # use range to auto select viewpoint for recording
+        self.view_dist_thresh_low = rospy.get_param("~view_dist_low", 1.5)
+        self.view_dist_thresh_high = rospy.get_param("~view_dist_high", 3.0)
+        if self.view_dist_thresh_high <= self.view_dist_thresh_low:
+            print "default distances used"
+            self.view_dist_thresh_low=1.5
+            self.view_dist_thresh_high=3.0
+        print "possible view points range %s - %s" %(self.view_dist_thresh_low, self.view_dist_thresh_high)
+        self.possible_nav_goals = []
+
         # skeleton publisher class (logs data given a detection)
         self.sk_publisher = SkeletonManagerConsent(reduce_frame_rate_by)
 
@@ -76,7 +86,9 @@ class skeleton_server(object):
         rospy.loginfo("Wait for PTU action server")
         self.ptu_client.wait_for_server(rospy.Duration(60))
         rospy.loginfo("Done")
+        self.ptu_values = (0,0,0,0)
 
+        # SOMA services
         rospy.loginfo("Wait for soma roi service")
         rospy.wait_for_service('/soma/query_rois')
         self.soma_query = rospy.ServiceProxy('/soma/query_rois',SOMAQueryROIs)
@@ -85,7 +97,7 @@ class skeleton_server(object):
         # mongo store
         self.msg_store = MessageStoreProxy(database='message_store', collection='consent_images')
         self.soma_id_store = MessageStoreProxy(database='message_store', collection='soma_activity_ids_list')
-        self.soma_store = MessageStoreProxy(database="somadata", collection="soma")
+        self.soma_store = MessageStoreProxy(database="somadata", collection="object")
         self.views_msg_store = MessageStoreProxy(collection='activity_view_stats')
         self.soma_roi_store = MessageStoreProxy(database='soma2data', collection='soma2_roi')
 
@@ -95,11 +107,6 @@ class skeleton_server(object):
 
         # speak
         self.speak()
-
-        # auto select viewpoint for recording
-        self.view_dist_thresh_low = 1.5
-        self.view_dist_thresh_high = 2.5
-        self.possible_nav_goals = []
 
         # visualizing the view point goal in RVIZ
         self.pub_viewpose = rospy.Publisher('activity_view_goal', PoseStamped, queue_size=10)
@@ -130,14 +137,16 @@ class skeleton_server(object):
         nav_fail, rem_duration = self.goto(duration)
         self.sk_publisher.max_num_frames =  self.number_of_frames_before_consent_needed
 
-        while (end - start).secs < rem_duration.secs and request_consent == 0:
-            consented_uuid = ""
-            request_consent = 0
+        #while (end - start).secs < rem_duration.secs: # and request_consent == 0:
+        consented_uuid = ""
+        request_consent = 0
 
+        if not nav_fail:
             rospy.loginfo("init recording page and skeleton pub")
             self.signal_start_of_recording()
             self.sk_publisher.reinisialise()
 
+        while (end - start).secs < rem_duration.secs and request_consent == 0:
             if self._as.is_preempt_requested(): break
 
             # print "1 ", self.sk_publisher.accumulate_data.keys()
@@ -146,7 +155,7 @@ class skeleton_server(object):
 
                 # publish the location of a person as a gaze request
                 if cnt == 0 and len(incr_msgs) > 0:
-                    if incr_msgs[-1].joints[0].name == 'head':
+        	    if incr_msgs[-1].joints[0].name == 'head':
                         head = Header(frame_id='head_xtion_depth_optical_frame')
                         look_at_pose = PoseStamped(header = head, pose=incr_msgs[-1].joints[0].pose)
                         self.publish_consent_pose.publish(look_at_pose)
@@ -170,7 +179,7 @@ class skeleton_server(object):
             end = rospy.Time.now()
 
         # after the action reset ptu and stop publisher
-        rospy.loginfo("exited loop. consent=%s" %consent_msg)
+        if not nav_fail: rospy.loginfo("exited loop. consent=%s" %consent_msg)
 
         # LOG THE STATS TO MONGO
         res = (request_consent, consent_msg)
@@ -216,7 +225,7 @@ class skeleton_server(object):
         if consent_msg == "everything": vinfo.success = True
 
         vinfo.soma_objs = [self.selected_object, repr(self.selected_object_pose)]
-        rospy.loginfo("logged view stats: nav:%s, record:%s, consent:%s." % (vinfo.nav_failure, bool(request_consent), vinfo.success))
+        rospy.loginfo("logged view stats: nav failed:%s, record:%s, consent:%s." % (vinfo.nav_failure, bool(request_consent), vinfo.success))
         self.views_msg_store.insert(vinfo)
 
 
@@ -410,7 +419,7 @@ class skeleton_server(object):
             for roi in response.rois:
                 if roi.map_name != self.soma_map: continue
                 if roi.config != roi_config: continue
-                if roi.roi_id != roi_id: continue
+                if roi.id != roi_id: continue
                 if roi.geotype != "Polygon": continue
                 observe_polygon = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
                 rospy.loginfo("Observe ROI: %s" %roi.type)
@@ -427,9 +436,10 @@ class skeleton_server(object):
         ids = self.soma_id_store.query(String._type)
         ids = [id_[0].data for id_ in ids]
         print "SOMA IDs to observe >> ", ids
-        objs = self.soma_store.query(SOMAObject._type, {"id":{"$exists":"true"}, "$where":"this.id in %s" %ids})
-        for i in objs:
-            print "obj: %s" %i
+        objs = self.soma_store.query(SOMAObject._type)#, {"id":{"$exists":"true"}, "$where":"this.id in %s" %ids})
+        for o in objs:
+            if o[0].id in ids:
+                print "obj id %s: %s" % (o[0].id, o[0].type)# i[0].pose.position)
 
         # dummy_objects = [(-52.29, -5.62, 1.20), (-50.01, -5.49, 1.31), (-1.68, -5.94, 1.10)]
         # all_dummy_objects = {
@@ -453,19 +463,20 @@ class skeleton_server(object):
         # reduce all the objects to those in the same region as the robot
         objects_in_roi = []
         # for (obj_name, (x,y,z)) in objs.items():
-        for o, meta in objs.items():
-            obj_name = o.obj_name
-            (x,y,z) = (o.x, o.y, o.z)
-            if target_polygon.contains(Point([x, y])):
-                pose = Pose()
-                pose.position.x = x
-                pose.position.y = y
-                pose.position.z = z
+        for (o,meta) in objs:
+            if o.id not in ids: continue
+            obj_name = o.type +"_"+o.id
+            if target_polygon.contains(Point([o.pose.position.x, o.pose.position.y])):
+                pose = o.pose
+                #pose = Pose()
+                #pose.position.x = x
+                #pose.position.y = y
+                #pose.position.z = z
                 objects_in_roi.append((obj_name, pose))
 
         if len(objects_in_roi) > 0:
             r = random.randint(0,len(objects_in_roi)-1)
-            rospy.loginfo("%s objects to chose from. Selected id: %s" % (len(objects_in_roi), r))
+            rospy.loginfo("%s objects to chose from in observe roi. Selected id: %s" % (len(objects_in_roi), r))
             (self.selected_object, self.selected_object_pose) = objects_in_roi[r]
             rospy.loginfo("selected object to view: %s. nav_target: (%s, %s)" % (self.selected_object, objects_in_roi[r][1].position.x, objects_in_roi[r][1].position.y))
             self.selected_object_id = r
