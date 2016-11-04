@@ -404,7 +404,7 @@ class skeleton_server(object):
             polygon = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
 
             if polygon.contains(Point([self.robot_pose.position.x, self.robot_pose.position.y])):
-                rospy.loginfo("Robot in ROI: %s" %roi.type)
+                rospy.loginfo("Robot (%s,%s) in ROI: %s" %(self.robot_pose.position.x, self.robot_pose.position.y, roi.type))
                 self.robot_polygon = polygon
                 return True
         rospy.logwarn("This waypoint is not defined in a ROI")
@@ -439,10 +439,10 @@ class skeleton_server(object):
         ids = self.soma_id_store.query(String._type)
         ids = [id_[0].data for id_ in ids]
         print "SOMA IDs to observe >> ", ids
-        objs = self.soma_store.query(SOMAObject._type)#, {"id":{"$exists":"true"}, "$where":"this.id in %s" %ids})
-        for o in objs:
-            if o[0].id in ids:
-                print "obj id %s: %s" % (o[0].id, o[0].type)# i[0].pose.position)
+        objs = self.soma_store.query(SOMAObject._type, message_query = {"id":{"$in": ids}})
+        # for o in objs:
+        #     if o[0].id in ids:
+        #         print "obj id %s: %s" % (o[0].id, o[0].type)# i[0].pose.position)
 
         # dummy_objects = [(-52.29, -5.62, 1.20), (-50.01, -5.49, 1.31), (-1.68, -5.94, 1.10)]
         # all_dummy_objects = {
@@ -479,8 +479,8 @@ class skeleton_server(object):
 
         if len(objects_in_roi) > 0:
             r = random.randint(0,len(objects_in_roi)-1)
-            rospy.loginfo("%s objects to chose from in observe roi. Selected id: %s" % (len(objects_in_roi), r))
             (self.selected_object, self.selected_object_pose) = objects_in_roi[r]
+            rospy.loginfo("%s objects to chose from in observe roi. Selected id: %s" % (len(objects_in_roi), r, self.selected_object))
             rospy.loginfo("selected object to view: %s. nav_target: (%s, %s)" % (self.selected_object, objects_in_roi[r][1].position.x, objects_in_roi[r][1].position.y))
             self.selected_object_id = r
             return True

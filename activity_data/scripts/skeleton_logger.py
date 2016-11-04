@@ -313,18 +313,23 @@ class SkeletonManager(object):
             # save skeleton data in text file
             f1 = open(d+'skeleton/skl_'+f_str+'.txt','w')
             f1.write('time:'+str(self.inc_sk.time.secs)+'.'+str(self.inc_sk.time.nsecs)+'\n')
+
+            #%todo: fix the 2d positions later - they're not used atm
+            x2d = "0"
+            y2d = "0"
             for i in self.inc_sk.joints:
-                f1.write(i.name+'\n')
-                f1.write('position\n')
-                f1.write('x:'+str(i.pose.position.x)+'\n')
-                f1.write('y:'+str(i.pose.position.y)+'\n')
-                f1.write('z:'+str(i.pose.position.z)+'\n')
-                f1.write('orientation\n')
-                f1.write('x:'+str(i.pose.orientation.x)+'\n')
-                f1.write('y:'+str(i.pose.orientation.y)+'\n')
-                f1.write('z:'+str(i.pose.orientation.z)+'\n')
-                f1.write('w:'+str(i.pose.orientation.w)+'\n')
-                f1.write('confidence:'+str(i.confidence)+'\n')
+                p = i.pose.position
+                f1.write(i.name + "," + x2d + "," + y2d + ","+ str(p.x)+","+str(p.y)+","+str(p.z)+","+str(i.confidence)+'\n')
+                # f1.write('position\n')
+                # f1.write('x:'+str(i.pose.position.x)+'\n')
+                # f1.write('y:'+str(i.pose.position.y)+'\n')
+                # f1.write('z:'+str(i.pose.position.z)+'\n')
+                # f1.write('orientation\n')
+                # f1.write('x:'+str(i.pose.orientation.x)+'\n')
+                # f1.write('y:'+str(i.pose.orientation.y)+'\n')
+                # f1.write('z:'+str(i.pose.orientation.z)+'\n')
+                # f1.write('w:'+str(i.pose.orientation.w)+'\n')
+                # f1.write('confidence:'+str(i.confidence)+'\n')
             f1.close()
 
             # update frame number

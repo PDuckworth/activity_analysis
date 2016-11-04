@@ -4,7 +4,7 @@
 
     <arg name="soma_map" default="collect_data_map_cleaned"/>
     <arg name="soma_config" default="test"/>
-    <arg name="view_dist_low" default="1.5"/>
+    <arg name="view_dist_low" default="2.0"/>
     <arg name="view_dist_high" default="3.0"/>
 
     <arg name="dist_thresh" default="1.5"/>

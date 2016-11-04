@@ -7,8 +7,8 @@
     <arg name="outtopic" default="/skeleton_data/incremental_reduced"/>
   -->
     <arg name="rec_rgb" default="True"/>
-    <arg name="max_frames" default="500"/>              <!--Roughly 2 mins.-->
-    <arg name="frame_rate_reduce" default="8"/>         <!--Equivilant to about 3-4Hz.-->
+    <arg name="frame_rate_reduce" default="6"/>   <!--Equivilant to about 6-8Hz.-->
+    <arg name="max_frames" default="600"/>
     <arg name="log_to_mongo" default="True"/>
 
     <arg name="soma_map" default="collect_data_map_cleaned"/>
