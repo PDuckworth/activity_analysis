@@ -54,6 +54,9 @@ class skeleton_server(object):
         rospy.loginfo("Required num of frames: %s" % self.number_of_frames_before_consent_needed)
         rospy.loginfo("Frame rate reduced by /%s" % reduce_frame_rate_by)
 
+        dist_thresh = rospy.get_param("~dist_thresh", 1.5)
+        rospy.loginfo("distance threshold %s" % dist_thresh)
+
         self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
         self.soma_config = rospy.get_param("~soma_config", "test")
 
@@ -68,7 +71,7 @@ class skeleton_server(object):
         self.possible_nav_goals = []
 
         # skeleton publisher class (logs data given a detection)
-        self.sk_publisher = SkeletonManagerConsent(reduce_frame_rate_by)
+        self.sk_publisher = SkeletonManagerConsent(dist_thresh, reduce_frame_rate_by)
 
         # robot pose
         self.listen_to_robot_pose = 1

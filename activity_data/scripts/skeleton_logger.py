@@ -17,6 +17,7 @@ from skeleton_tracker.msg import skeleton_tracker_state, skeleton_message, robot
 from mongodb_store.message_store import MessageStoreProxy
 from tf.transformations import euler_from_quaternion
 from soma_msgs.msg import SOMAROIObject
+from soma_manager.srv import *
 from shapely.geometry import Polygon, Point
 
 class SkeletonManager(object):
@@ -32,7 +33,7 @@ class SkeletonManager(object):
         self.sk_mapping = {} # does something in for the image logging
 
         self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
-        self.soma_config = rospy.get_param("~soma_config", "test")
+        # self.soma_config = rospy.get_param("~soma_config", "test")
 
         self.map_info = "don't know"  # topological map name
         self.current_node = "don't care"  # topological node waypoint
@@ -57,6 +58,9 @@ class SkeletonManager(object):
         self._flag_rgb = 0
         #self._flag_rgb_sk = 0
         self._flag_depth = 0
+
+        # depth threshold on recordings
+        self.dist_thresh = rospy.get_param("~dist_thresh", 1.5)
 
         # open cv stuff
         self.cv_bridge = CvBridge()
@@ -338,8 +342,10 @@ class SkeletonManager(object):
         """accumulate the multiple skeleton messages until user goes out of scene"""
 
         if self._flag_robot and self._flag_rgb and self._flag_depth:
+
             if msg.uuid in self.sk_mapping:
-                if self.sk_mapping[msg.uuid]["state"] is 'Tracking' and len(self.accumulate_data[msg.uuid]) < self.max_num_frames:
+                if self.sk_mapping[msg.uuid]["state"] is 'Tracking' and len(self.accumulate_data[msg.uuid]) < self.max_num_frames \
+                and msg.joints[0].pose.position.z > self.dist_thresh:
 
                     self.sk_mapping[msg.uuid]["msgs_recieved"]+=1
                     if self.sk_mapping[msg.uuid]["msgs_recieved"] % self.reduce_frame_rate_by == 0:

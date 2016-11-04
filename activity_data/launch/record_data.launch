@@ -12,10 +12,12 @@
     <arg name="log_to_mongo" default="True"/>
 
     <arg name="soma_map" default="collect_data_map_cleaned"/>
-    <arg name="soma_config" default="test"/>
+    <!--<arg name="soma_config" default="test"/>-->
 
     <arg name="use_roi" default="True"/>
     <arg name="roi_config" default="test"/>
+
+    <arg name="dist_thresh" default="1.5"/>
 
   <!-- Drops human pose estimate msgs to be logged - check topic_tools drop-->
   <!-- Don't use this - drop will intefer with uuid's of the tracker :(
@@ -31,8 +33,9 @@
        <param name="max_frames" value="$(arg max_frames)" type="int"/>
        <param name="log_to_mongo" value="$(arg log_to_mongo)" type="bool"/>
        <param name="soma_map" value="$(arg soma_map)" type="string"/>
-       <param name="soma_config" value="$(arg soma_config)" type="string"/>
+       <!--<param name="soma_config" value="$(arg soma_config)" type="string"/> -->
        <param name="use_roi" value="$(arg use_roi)" type="bool"/>
        <param name="roi_config" value="$(arg roi_config)" type="string"/>
+       <param name="dist_thresh" value="$(arg dist_thresh)" type="double"/>
 	</node>
 </launch>

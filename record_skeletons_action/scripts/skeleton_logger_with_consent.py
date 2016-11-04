@@ -19,7 +19,7 @@ from mongodb_store.message_store import MessageStoreProxy
 class SkeletonManagerConsent(object):
     """To deal with Skeleton messages once they are published as incremental msgs by OpenNI2."""
 
-    def __init__(self, frame_rate_reduce=3):
+    def __init__(self, dist_thresh, frame_rate_reduce=3):
 
         self.reinisialise()
         self.reset_data()
@@ -29,6 +29,9 @@ class SkeletonManagerConsent(object):
         self.camera = "head_xtion"
         self.max_num_frames = 3000  # consent can be requested after less in execute action callback
         self.reduce_frame_rate_by = frame_rate_reduce
+
+        # depth threshold on recordings
+        self.dist_thresh = dist_thresh
 
         # listeners
         rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
@@ -76,9 +79,10 @@ class SkeletonManagerConsent(object):
         """accumulate all data until consent is requested and accepted"""
         if self._flag_robot and self._flag_rgb and self._flag_depth and self.requested_consent_flag is 0:
             if msg.uuid in self.sk_mapping:
-                if self.sk_mapping[msg.uuid]["state"] is 'Tracking' and len(self.accumulate_data[msg.uuid]) <= self.max_num_frames:
-                    self.sk_mapping[msg.uuid]["msgs_recieved"]+=1
+                if self.sk_mapping[msg.uuid]["state"] is 'Tracking' and len(self.accumulate_data[msg.uuid]) <= self.max_num_frames \
+                and msg.joints[0].pose.position.z > self.dist_thresh:
 
+                    self.sk_mapping[msg.uuid]["msgs_recieved"]+=1
                     if self.sk_mapping[msg.uuid]["msgs_recieved"] % self.reduce_frame_rate_by == 0:
                         self.accumulate_data[msg.uuid].append(msg)
                         robot_msg = robot_message(robot_pose = self.robot_pose, PTU_pan = self.ptu_pan, PTU_tilt = self.ptu_tilt)
