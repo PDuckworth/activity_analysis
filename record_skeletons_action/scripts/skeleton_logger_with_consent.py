@@ -32,7 +32,11 @@ class SkeletonManagerConsent(object):
 
         # depth threshold on recordings
         self.dist_thresh = dist_thresh
-
+        self.fx = 525.0
+        self.fy = 525.0
+        self.cx = 319.5
+        self.cy = 239.5
+        
         # listeners
         rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
         rospy.Subscriber('/'+self.camera+'/rgb/image_color', sensor_msgs.msg.Image, callback=self.rgb_callback, queue_size=10)
@@ -203,13 +207,12 @@ class SkeletonManagerConsent(object):
                 f1 = open(d+'skeleton/skl_'+f_str+'.txt','w')
                 f1.write('time:'+str(incr_msg.time.secs)+'.'+str(incr_msg.time.nsecs)+'\n')
 
-                #%todo: fix the 2d positions later - they're not used atm
-                x2d = "0"
-                y2d = "0"
                 for i in incr_msg.joints:
                     p = i.pose.position
-                    f1.write(i.name + "," + x2d + "," + y2d + ","+ str(p.x)+","+str(p.y)+","+str(p.z)+","+str(i.confidence)+'\n')
-                    
+                    x2d = int(p.x*self.fx/p.z+self.cx)
+                    y2d = int(p.y*self.fy/p.z+self.cy)
+                    f1.write(i.name + "," +str(x2d) + "," + str(y2d)+ ","+ str(p.x)+","+str(p.y)+","+str(p.z)+","+str(i.confidence)+'\n')
+
                 # for i in incr_msg.joints:
                 #     f1.write(i.name+'\n')
                 #     f1.write('position\n')
