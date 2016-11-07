@@ -11,8 +11,9 @@ import rospy
 import numpy as np
 import cPickle as pickle
 import multiprocessing as mp
-from soma2_msgs.msg import SOMA2Object, SOMA2ROIObject
-from soma_manager.srv import SOMA2QueryObjs
+from std_msgs.msg import String, Header
+from soma_msgs.msg import SOMAObject, SOMAROIObject
+from soma_manager.srv import *
 from skeleton_tracker.msg import skeleton_message
 #from activity_data.msg import SkeletonComplete
 from shapely.geometry import Polygon, Point
@@ -37,6 +38,22 @@ class Offline_ActivityLearning(object):
         self.make_init_filepaths()  # Define all file paths
         self.recordings = recordings
 
+        # self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
+        # self.soma_config = rospy.get_param("~soma_config", "test")  # objects
+        # self.roi_config = rospy.get_param("~roi_config", "test")    # regions
+        self.soma_map = self.config['events']['soma_map']
+        self.soma_config = self.config['events']['soma_config']
+        self.roi_config = self.config['events']['roi_config']
+
+        # SOMA services
+        rospy.loginfo("Wait for soma roi service")
+        rospy.wait_for_service('/soma/query_rois')
+        self.soma_query = rospy.ServiceProxy('/soma/query_rois',SOMAQueryROIs)
+        rospy.loginfo("Done")
+
+        self.soma_id_store = MessageStoreProxy(database='message_store', collection='soma_activity_ids_list')
+        self.soma_store = MessageStoreProxy(database="somadata", collection="object")
+
     def load_config(self):
         """load a config file for all the learning parameters"""
         try:
@@ -53,10 +70,13 @@ class Offline_ActivityLearning(object):
         if not os.path.isdir(self.accu_path): os.system('mkdir -p ' + self.accu_path)
 
     def get_soma_rois(self):
-        """Try to use only objects in the same ROI as the detection (if possible)
+        """Use only objects in the same ROI as the detection (if possible)
         """
         self.rois = {}
-        for (roi, meta) in self.soma_roi_store.query(SOMA2ROIObject._type):
+        print "self.roi_config: ", self.roi_config
+        query = SOMAQueryROIsRequest(query_type=0, roiconfigs=[self.roi_config], returnmostrecent = True)
+
+        for roi in self.soma_query(query).rois:
             if roi.map_name != self.soma_map: continue
             if roi.config != self.roi_config: continue
             if roi.geotype != "Polygon": continue
@@ -66,13 +86,27 @@ class Offline_ActivityLearning(object):
 
     def get_soma_objects(self):
         """srv call to mongo and get the list of new objects and locations"""
+        ids = self.soma_id_store.query(String._type)
+        ids = [id_[0].data for id_ in ids]
+        print "SOMA IDs used to observe >> ", ids
 
-        """%todo: restrict the objects to only those in the same ROI"""
-        msg_store = MessageStoreProxy(database="soma2data", collection="soma2")
-        objs = msg_store.query(SOMA2Object._type, message_query={"map_name":self.soma_map,"config":self.soma_config})
-        print "queried soma2 objects >> ", objs
-        self.soma_objects = ce.get_soma_objects()
-        print "hard coded objects >> ", [self.soma_objects[r].keys() for r in self.soma_objects.keys()]
+        objs = self.soma_store.query(SOMAObject._type, message_query = {"id":{"$in": ids}})
+        all_objects = {}
+        self.soma_objects = {}
+        for (ob, meta) in objs:
+            if ob.id in ids:
+                k = ob.type + "_" + ob.id
+                p = ob.pose.position
+                all_objects[k] = (p.x, p.y, p.z)
+        # print "\nall_objects >> ", all_objects#.keys()
+
+        for r, poly in self.rois.items():
+            self.soma_objects[r] = {}
+            for (ob, (x,y,z)) in all_objects.items():
+                if poly.contains(Point([x, y])):
+                    self.soma_objects[r][ob] = (x,y,z)
+        print "\nobjects >> ", self.soma_objects
+        # print "\nobjects >> ", [self.soma_objects[r].keys() for r in self.soma_objects.keys()]
 
     # def get_skeletons_from_mongodb(self):
     #     """Query the database for the skeleton pose sequences"""
@@ -94,13 +128,12 @@ class Offline_ActivityLearning(object):
          - Filter to qsrs last.
         """
         path = os.path.join(self.path, self.recordings, folder)
+        return ce.get_event(uuid, path, self.soma_objects, self.config['events'])
         # try:
-            # Can we reduce this list of objects using ROI information?
-        use_objects = {}
-        for region, objects in self.soma_objects.items():
-            for ob, position in objects.items():
-                use_objects[ob] = position
-        return ce.get_event(uuid, path, use_objects, self.config['events'])
+        # use_objects = {}
+        # for region, objects in self.soma_objects.items():
+        #     for ob, position in objects.items():
+        #         use_objects[ob] = position
         # except:
         #     print "recording: %s in: %s something is broken." %(uuid, path)
 
@@ -109,7 +142,7 @@ class Offline_ActivityLearning(object):
         path = os.path.join(self.events_path, folder)
         for uuid in sorted(os.listdir(path), reverse=False):
             if rec in uuid:
-                event = (uuid, path, self.soma_objects.values(), self.config['qsrs'])
+                event = (uuid, path, self.config['qsrs'])
                 eq.worker_qsrs(event)
 
     def encode_qsrs(self, folder):
@@ -119,7 +152,7 @@ class Offline_ActivityLearning(object):
         list_of_events = []
         for recording in sorted(os.listdir(path)):
             if not os.path.isfile(os.path.join(self.qsr_path, recording)):
-                list_of_events.append((recording, path, self.soma_objects.values(), self.config['qsrs']))
+                list_of_events.append((recording, path, self.config['qsrs']))
 
         if len(list_of_events) > 0:
             if self.config['qsrs']['parallel']:

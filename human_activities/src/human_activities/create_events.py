@@ -29,7 +29,7 @@ class event(object):
         self.end_frame = end
         self.label = label
         self.sorted_timestamps = []
-        self.sorted_ros_timestamps = []
+        # self.sorted_ros_timestamps = []
         self.bad_timepoints = {}        #use for filtering
         self.skeleton_data = {}         #type: dict[timepoint][joint_id]= (x, y, z, x2d, y2d)
         self.map_frame_data = {}        #type: dict[timepoint][joint_id]= (x, y, z, x2d, y2d)
@@ -157,9 +157,10 @@ class event(object):
 
         ob_states={}
         world = World_Trace()
-        for t in self.sorted_timestamps:
+        # print ">>", self.map_frame_data.keys()
+        for t, frame in enumerate(self.sorted_timestamps):
             #Joints:
-            for joint_id, (x, y, z) in self.map_frame_data[t].items():
+            for joint_id, (x, y, z) in self.map_frame_data[frame].items():
                 if joint_id not in ob_states.keys():
                     ob_states[joint_id] = [Object_State(name=joint_id, timestamp=t, x=x, y=y, z=z)]
                 else:
@@ -173,7 +174,7 @@ class event(object):
                     ob_states[object].append(Object_State(name=str(object), timestamp=t, x=x, y=y, z=z))
 
             # Robot's position
-            (x,y,z) = self.robot_data[t][0]
+            (x,y,z) = self.robot_data[frame][0]
             if 'robot' not in ob_states.keys():
                 ob_states['robot'] = [Object_State(name='robot', timestamp=t, x=x, y=y, z=z)]
             else:
@@ -196,7 +197,7 @@ def get_labels(d1, d_sk):
                 labels[count] = (activity_class, int(start), int(end))
     else:
         number_of_frames = len([1 for f in os.listdir(d_sk) ])
-        labels[0] = ("NA", int(10), int(number_of_frames-10))
+        labels[0] = ("NA", 0, int(number_of_frames-1))
     return labels
 
 def get_event(recording, path, soma_objects, config):
@@ -211,7 +212,15 @@ def get_event(recording, path, soma_objects, config):
     if os.path.isfile(os.path.join(d1, 'meta.txt')):
         f1 = open(os.path.join(d1, 'meta.txt'), 'r')
         for count, line in enumerate(f1):
-            if count == 0: region = line.split('\n')[0].split(':')[1]
+            if count == 0: region = line.split('\n')[0].split(':')[1].replace(" ", "")
+
+    objects = {}
+    try:
+        objects = soma_objects[region]
+    except KeyError:
+        for r, objs in soma_objects.items():
+            for ob, position in objs.items():
+                objects[ob] = position
 
     try:
         """information stored in the filename - differently for ecai dataset"""
@@ -222,75 +231,78 @@ def get_event(recording, path, soma_objects, config):
         date = ""
         time = recording.split('_')[0]
         uuid = recording.split('_')[1]
-    print "date: %s. time: %s. uid: %s. " % (date, time, uuid) , 
+    print "date: %s. time: %s. uid: %s. " % (date, time, uuid) ,
+    # print "objs: %s" % use_objects
     labels = get_labels(d1, d_sk)
 
     for iter, (label, st, end) in labels.items():
         # print iter
         """initialise event"""
         e = event(uuid, d1, st, end, label)
+        e.objects = objects
 
         """get the skeleton data from each timepoint file"""
         sk_files = [f for f in os.listdir(d_sk) if os.path.isfile(os.path.join(d_sk, f))]
 
         """reduce the number of frames by a rate. Re-number from 1."""
-        frame = 1
+        # frame = 1
         for file in sorted(sk_files):
-            original_frame = int(file.split('.')[0].split('_')[1])
-            if original_frame < int(st) or original_frame > int(end): continue
+            # original_frame = int(file.split('.')[0].split('_')[1])
+            # if original_frame % config['reduce_frame_rate'] != 0: continue
+            frame = int(file.split('.')[0].split('_')[1])
+            if frame < int(st) or frame > int(end): continue
 
-            if original_frame % config['reduce_frame_rate'] != 0: continue
-
-            e.skeleton_data[frame] = {}
             e.sorted_timestamps.append(frame)
             f1 = open(d_sk+file,'r')
+            # e.skeleton_data[frame] = {}
+            e.skeleton_data[frame] = get_openni_values(f1)
 
-            # do the Skeleon Tracking pose estimates include confidence values on each joint
-            if config['rec_inc_confidence_vals']:
-                for count,line in enumerate(f1):
-                    if count == 0:
-                        t = line.split(':')[1].split('\n')[0]
-                        e.sorted_ros_timestamps.append(np.float64(t))
+            # frame+=1
+            # if config['rec_inc_confidence_vals']:
+            #     for count,line in enumerate(f1):
+            #         if count == 0:
+            #             t = line.split(':')[1].split('\n')[0]
+            #             e.sorted_ros_timestamps.append(np.float64(t))
+            #
+            #         # read the joint name
+            #         elif (count-1)%11 == 0:
+            #             j = line.split('\n')[0]
+            #             e.skeleton_data[frame][j] = []
+            #         # read the x value
+            #         elif (count-1)%11 == 2:
+            #             a = float(line.split('\n')[0].split(':')[1])
+            #             e.skeleton_data[frame][j].append(a)
+            #         # read the y value
+            #         elif (count-1)%11 == 3:
+            #             a = float(line.split('\n')[0].split(':')[1])
+            #             e.skeleton_data[frame][j].append(a)
+            #         # read the z value
+            #         elif (count-1)%11 == 4:
+            #             a = float(line.split('\n')[0].split(':')[1])
+            #             e.skeleton_data[frame][j].append(a)
+            # else:
+            #     for count,line in enumerate(f1):
+            #         if count == 0:
+            #             t = line.split(':')[1].split('\n')[0]
+            #             e.sorted_ros_timestamps.append(np.float64(t))
+            #
+            #         # read the joint name
+            #         elif (count-1)%10 == 0:
+            #             j = line.split('\n')[0]
+            #             e.skeleton_data[frame][j] = []
+            #         # read the x value
+            #         elif (count-1)%10 == 2:
+            #             a = float(line.split('\n')[0].split(':')[1])
+            #             e.skeleton_data[frame][j].append(a)
+            #         # read the y value
+            #         elif (count-1)%10 == 3:
+            #             a = float(line.split('\n')[0].split(':')[1])
+            #             e.skeleton_data[frame][j].append(a)
+            #         # read the z value
+            #         elif (count-1)%10 == 4:
+            #             a = float(line.split('\n')[0].split(':')[1])
+            #             e.skeleton_data[frame][j].append(a)
 
-                    # read the joint name
-                    elif (count-1)%11 == 0:
-                        j = line.split('\n')[0]
-                        e.skeleton_data[frame][j] = []
-                    # read the x value
-                    elif (count-1)%11 == 2:
-                        a = float(line.split('\n')[0].split(':')[1])
-                        e.skeleton_data[frame][j].append(a)
-                    # read the y value
-                    elif (count-1)%11 == 3:
-                        a = float(line.split('\n')[0].split(':')[1])
-                        e.skeleton_data[frame][j].append(a)
-                    # read the z value
-                    elif (count-1)%11 == 4:
-                        a = float(line.split('\n')[0].split(':')[1])
-                        e.skeleton_data[frame][j].append(a)
-            else:
-                for count,line in enumerate(f1):
-                    if count == 0:
-                        t = line.split(':')[1].split('\n')[0]
-                        e.sorted_ros_timestamps.append(np.float64(t))
-
-                    # read the joint name
-                    elif (count-1)%10 == 0:
-                        j = line.split('\n')[0]
-                        e.skeleton_data[frame][j] = []
-                    # read the x value
-                    elif (count-1)%10 == 2:
-                        a = float(line.split('\n')[0].split(':')[1])
-                        e.skeleton_data[frame][j].append(a)
-                    # read the y value
-                    elif (count-1)%10 == 3:
-                        a = float(line.split('\n')[0].split(':')[1])
-                        e.skeleton_data[frame][j].append(a)
-                    # read the z value
-                    elif (count-1)%10 == 4:
-                        a = float(line.split('\n')[0].split(':')[1])
-                        e.skeleton_data[frame][j].append(a)
-            frame+=1
         # for frame, data in  e.skeleton_data.items():
             # print frame, data['head']
         # sys.exit(1)
@@ -300,12 +312,14 @@ def get_event(recording, path, soma_objects, config):
         if not e.apply_median_filter(config['joints_mean_window']): return
 
         """ read robot odom data"""
-        r_files = [f for f in os.listdir(d_robot) if os.path.isfile(os.path.join(d_robot, f))]
-        frame = 1
-        for file in sorted(r_files):
-            original_frame = int(file.split('.')[0].split('_')[1])
-            if original_frame % config['reduce_frame_rate'] != 0: continue
 
+        r_files = [f for f in os.listdir(d_robot) if os.path.isfile(os.path.join(d_robot, f))]
+        # frame = 1
+        for file in sorted(r_files):
+            frame = int(file.split('.')[0].split('_')[1])
+            if frame not in e.skeleton_data.keys(): continue
+
+            # if original_frame % config['reduce_frame_rate'] != 0: continue
             e.robot_data[frame] = [[],[]]
             f1 = open(d_robot+file,'r')
             for count, line in enumerate(f1):
@@ -335,7 +349,6 @@ def get_event(recording, path, soma_objects, config):
                         e.robot_data[frame][1] = [roll,pitch,yaw]
 
                 elif count > 8 and config['ptu_vals_stored']:
-
                     if count == 10:
                         pan = float(line.split('\n')[0].split(':')[1])
                     elif count == 11:
@@ -344,7 +357,7 @@ def get_event(recording, path, soma_objects, config):
                         yaw += pan #*math.pi / 180.                   # this adds the pan of the ptu state when recording took place.
                         pitch += tilt #*math.pi / 180.                # this adds the tilt of the ptu state when recording took place.
                         e.robot_data[frame][1] = [roll,pitch,yaw]
-            frame+=1
+            # frame+=1
 
         # add the map frame data for the skeleton detection
         for frame in e.sorted_timestamps:
@@ -373,22 +386,46 @@ def get_event(recording, path, soma_objects, config):
                 j = (x_mf, y_mf, z_mf)
                 e.map_frame_data[frame][joint] = j
 
+        # print ">",e.sorted_timestamps
         # for i in e.sorted_timestamps:
-            # print i, e.map_frame_data[i]['head'], e.map_frame_data[i]['left_hand']#, e.map_frame_data[i]['right_hand'] #e.skeleton_data[i]['right_hand'], e.map_frame_data[i]['right_hand']   , yaw, pitch
+        #     print i, e.map_frame_data[i]['head'], e.map_frame_data[i]['left_hand']#, e.map_frame_data[i]['right_hand'] #e.skeleton_data[i]['right_hand'], e.map_frame_data[i]['right_hand']   , yaw, pitch
         # sys.exit(1)
         if len(e.sorted_timestamps) >= 5:
-            e.get_world_frame_trace(soma_objects)
+            e.get_world_frame_trace(e.objects)
             utils.save_event(e, "Learning/Events")
             return True
         else:
             print "  >dont save me - recording too short."
             return False
 
-def get_soma_objects():
-    objects = {}
+def get_openni_values(f1):
+    openni_values = {}
+    for count, line in enumerate(f1):
+        if count == 0: continue
+        line = line.split(',')
+        joint_name = line[0]
+        openni_values[joint_name] = {}
+        x2d = float(line[1])
+        y2d = float(line[2])
+        x = float(line[3])
+        y = float(line[4])
+        z = float(line[5])
+        c = float(line[6])
+        openni_values[joint_name] = [x,y,z]
+        # openni_values[joint_name]['x2d']=x2d
+        # openni_values[joint_name]['y2d']=y2d
+        # openni_values[joint_name]['x']=x
+        # openni_values[joint_name]['y']=y
+        # openni_values[joint_name]['z']=z
+    return openni_values
+
+
+# def get_soma_objects():
+
+    # objects = {}
     #objects['Kitchen'] = {}
     #objects['Long_room'] = {}
-    objects['Robot_lab'] = {}
+    # objects['Robot_lab'] = {}
     #objects['Staff_Room'] = {}
 
     # kitchen
@@ -406,13 +443,13 @@ def get_soma_objects():
     #'Paper_towel_111': (-1.845, -16.346, 1.213),                            # fixed
     #'Double_doors_112': (-8.365, -18.440, 1.021),
     #}
-    objects['Robot_lab'] = {
-    'Majd_desk_1': (-7.3, -33.5, 1.2),
-    'Baxter_desk_1': (-4.4, -31.8, 1.2),
-    'Poster_Board_1': (-4.3, -34.0, 1.2)
-    }
-    return objects
-#
+    # objects['Robot_lab'] = {
+    # 'Majd_desk_1': (-7.3, -33.5, 1.2),
+    # 'Baxter_desk_1': (-4.4, -31.8, 1.2),
+    # 'Poster_Board_1': (-4.3, -34.0, 1.2)
+    # }
+    # return objects
+
 # def get_soma_objects():
 #     #todo: read from soma2 mongo store.
 #

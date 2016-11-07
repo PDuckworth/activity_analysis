@@ -11,10 +11,10 @@ from learn_activities import Offline_ActivityLearning
 from human_activities.msg import LearningActivitiesAction, LearningActivitiesResult, LastKnownLearningPoint, QSRProgress
 
 class Learning_server(object):
-    def __init__(self, name= "LearnHumanActivities"):
+    def __init__(self, name= "learn_human_activities"):
 
         # Start server
-        rospy.loginfo("Learning Human Activites action server")
+        rospy.loginfo("%s action server" % name)
         self._action_name = name
         self._as = actionlib.SimpleActionServer(self._action_name, LearningActivitiesAction,
             execute_cb=self.execute, auto_start=False)
@@ -25,12 +25,7 @@ class Learning_server(object):
         self.path = '/home/' + getpass.getuser() + '/SkeletonDataset/'
         self.ol = Offline_ActivityLearning(self.path, self.recordings)
 
-        self.ol.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
-        self.ol.soma_config = rospy.get_param("~soma_config", "test")
-        self.ol.roi_config = rospy.get_param("~roi_config", "test")
-        self.ol.soma_roi_store = MessageStoreProxy(database='soma2data', collection='soma2_roi')
         self.msg_store = MessageStoreProxy(database='message_store', collection='activity_learning_stats')
-
         self.qsr_progress_date = ""
         self.qsr_progress_uuid = ""
         self.last_learn_date = ""
@@ -42,13 +37,14 @@ class Learning_server(object):
         return False
 
     def execute(self, goal):
+
         print "\nLearning Goal: %s seconds." % goal.duration.secs
         print "batch size max: %s" %  self.ol.config['events']['batch_size']
-        
+
         self.duration = goal.duration
         self.start = rospy.Time.now()
         self.end = rospy.Time.now()
-        
+
         #while (self.end - self.start).secs < self.duration.secs:
         self.get_dates_to_process()
         self.get_dates_to_learn()
@@ -61,7 +57,7 @@ class Learning_server(object):
             uuids_to_process = self.get_uuids_to_process(date)
             num_batches = int(np.ceil(len(uuids_to_process) / self.ol.config['events']['batch_size']))+1
             print "\nprocessing date: %s, batches: %s " % (date, num_batches)
-			
+
             for batch_ind in xrange(num_batches):
                 if self.cond(): break
                 st = batch_ind*self.ol.config['events']['batch_size']
@@ -82,7 +78,7 @@ class Learning_server(object):
 
                 #restrict the learning to only use this batch of uuids
                 if len(batch) == 0: break
-                
+
                 self.ol.batch = batch
                 if date == self.last_learn_date:
                     if self.last_learn_success: continue
@@ -132,7 +128,7 @@ class Learning_server(object):
         for date in sorted(os.listdir(os.path.join(self.path, self.recordings)), reverse=False):
             if date >= self.qsr_progress_date:
                 self.not_processed_dates.append(date)
-        print "not processed dates:", self.not_processed_dates
+        print "dates to process:", self.not_processed_dates
 
     def update_qsr_progress(self, date, uuid):
         query={"type":"QSRProgress"}
@@ -162,5 +158,5 @@ class Learning_server(object):
 if __name__ == "__main__":
     rospy.init_node('learning_human_activities_server')
 
-    Learning_server(name = "LearnHumanActivities")
+    Learning_server()
     rospy.spin()

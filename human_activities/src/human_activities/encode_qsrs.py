@@ -16,7 +16,7 @@ from qsrlib_qstag.utils import *
 
 
 def worker_qsrs(chunk):
-    (file_, path, soma_objects, config) = chunk
+    (file_, path, config) = chunk
     e = utils.load_e(path, file_)
 
     dynamic_args = {}
@@ -28,36 +28,38 @@ def worker_qsrs(chunk):
     except KeyError:
         print "check argd, qtcbs, qstag parameters in config file"
 
-
     joint_types = {'head': 'head', 'torso': 'torso', 'left_hand': 'hand', 'right_hand': 'hand', 'left_knee': 'knee', 'right_knee': 'knee',
                    'left_shoulder': 'shoulder', 'right_shoulder': 'shoulder', 'head-torso': 'tpcc-plane'}
     object_types = joint_types.copy()
-    add_objects = []
-    
-    for region, objects in ce.get_soma_objects().items():
-        for o in objects:
-            add_objects.append(o)
-            try:
-                generic_object = "_".join(o.split("_")[:-1])
-                object_types[o] = generic_object
-            except:
-                print "didnt add:", object
+
+    for ob, pos in e.objects.items():
+        try:
+            generic_object = "_".join(ob.split("_")[:-1])
+            object_types[ob] = generic_object
+            print "object generic", generic_object
+        except:
+            print "didnt add:", object
     dynamic_args["qstag"]["object_types"] = object_types
+
+    # for i,j in object_types.items():
+    #     print ">", i,j
 
     """1. CREATE QSRs FOR joints & Object """
     qsrlib = QSRlib()
-
     qsrs_for=[]
-    for ob in objects:
+    for ob, pos in e.objects.items():
         qsrs_for.append((str(ob), 'left_hand'))
         qsrs_for.append((str(ob), 'right_hand'))
         qsrs_for.append((str(ob), 'torso'))
     dynamic_args['argd']["qsrs_for"] = qsrs_for
     dynamic_args['qtcbs']["qsrs_for"] = qsrs_for
 
+    # for (i,j) in qsrs_for:
+    #     print ">", (i,j)
+
     req = QSRlib_Request_Message(config['which_qsr'], input_data=e.map_world, dynamic_args=dynamic_args)
     e.qsr_object_frame = qsrlib.request_qsrs(req_msg=req)
-	
+
     # print ">", e.qsr_object_frame.qstag.graphlets.histogram
     # for i in e.qsr_object_frame.qstag.episodes:
     #     print i
