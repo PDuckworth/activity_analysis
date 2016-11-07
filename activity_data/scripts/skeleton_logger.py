@@ -445,8 +445,7 @@ class SkeletonManager(object):
         depth_array = np.array(depth_image, dtype=np.float32)
         ind = np.argwhere(np.isnan(depth_array))
         depth_array[ind[:,0],ind[:,1]] = 4.0
-        cv2.normalize(depth_array, depth_array, 0, 1, cv2.NORM_MINMAX)
-        depth_array *= 255
+        depth_array *= 255/4.0
         self.xtion_img_d_rgb = depth_array.astype(np.uint8)
 
         if self._flag_depth is 0:
