@@ -109,7 +109,7 @@ class SkeletonManager(object):
         if self._with_logging:
             rospy.loginfo("Connecting to mongodb...%s" % self._message_store)
             self._store_client = MessageStoreProxy(collection=self._message_store, database=self._database)
-            self.learning_store_client = MessageStoreProxy(collection=self._message_store, database=activity_learning_store)
+            self.learning_store_client = MessageStoreProxy(collection="activity_learning", database=self._database)
 
     def get_soma_rois(self):
         """Restrict the logging to certain soma regions only
@@ -202,7 +202,8 @@ class SkeletonManager(object):
 
             # add a blank activity learning message here:
             msg = HumanActivities(uuid=uuid, date=self.date, map_point=first_map_point, cpm=False, \
-                                    activity=False, topics=[], temporal=False)
+                                  start_time=st,  activity=False, topics=[], temporal=False)
+            # print "here ", msg
             self.learning_store_client.insert(message=msg)
 
         # remove the user from the users dictionary and the accumulated data dict.
