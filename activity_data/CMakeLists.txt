@@ -52,6 +52,7 @@ add_message_files(
    QSRlibMongo.msg
    QsrsToMongo.msg
    Graphlets.msg
+   HumanActivities.msg
    #SkeletonComplete.msg
 )
 

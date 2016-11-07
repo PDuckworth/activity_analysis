@@ -480,7 +480,7 @@ class skeleton_server(object):
         if len(objects_in_roi) > 0:
             r = random.randint(0,len(objects_in_roi)-1)
             (self.selected_object, self.selected_object_pose) = objects_in_roi[r]
-            rospy.loginfo("%s objects to chose from in observe roi. Selected id: %s" % (len(objects_in_roi), r, self.selected_object))
+            rospy.loginfo("%s objects to chose from in observe roi. Selected id: %s, %s" % (len(objects_in_roi), r, self.selected_object))
             rospy.loginfo("selected object to view: %s. nav_target: (%s, %s)" % (self.selected_object, objects_in_roi[r][1].position.x, objects_in_roi[r][1].position.y))
             self.selected_object_id = r
             return True

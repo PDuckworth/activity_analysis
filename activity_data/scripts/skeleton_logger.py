@@ -19,6 +19,7 @@ from tf.transformations import euler_from_quaternion
 from soma_msgs.msg import SOMAROIObject
 from soma_manager.srv import *
 from shapely.geometry import Polygon, Point
+from activity_data.msg import HumanActivities
 
 class SkeletonManager(object):
     """To deal with Skeleton messages once they are published as incremental msgs by OpenNI2."""
@@ -108,6 +109,7 @@ class SkeletonManager(object):
         if self._with_logging:
             rospy.loginfo("Connecting to mongodb...%s" % self._message_store)
             self._store_client = MessageStoreProxy(collection=self._message_store, database=self._database)
+            self.learning_store_client = MessageStoreProxy(collection=self._message_store, database=activity_learning_store)
 
     def get_soma_rois(self):
         """Restrict the logging to certain soma regions only
@@ -197,6 +199,11 @@ class SkeletonManager(object):
             query = {"uuid" : msg.uuid}
             #self._store_client.insert(traj_msg, meta)
             self._store_client.update(message=msg, message_query=query, upsert=True)
+
+            # add a blank activity learning message here:
+            msg = HumanActivities(uuid=uuid, date=self.date, map_point=first_map_point, cpm=False, \
+                                    activity=False, topics=[], temporal=False)
+            self.learning_store_client.insert(message=msg)
 
         # remove the user from the users dictionary and the accumulated data dict.
         del self.accumulate_data[uuid]
