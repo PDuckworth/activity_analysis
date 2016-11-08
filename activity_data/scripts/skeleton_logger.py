@@ -201,7 +201,8 @@ class SkeletonManager(object):
             self._store_client.update(message=msg, message_query=query, upsert=True)
 
             # add a blank activity learning message here:
-            msg = HumanActivities(uuid=uuid, date=self.date, map_point=first_map_point, cpm=False, \
+            msg = HumanActivities(uuid=uuid, date=self.date, time=self.sk_mapping[uuid]['time'], \
+                                  map_point=first_map_point, cpm=False, \
                                   start_time=st,  activity=False, topics=[], temporal=False)
             # print "here ", msg
             self.learning_store_client.insert(message=msg)

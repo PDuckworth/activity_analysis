@@ -1,5 +1,6 @@
 string uuid
 string date
+string time
 time start_time
 geometry_msgs/Point map_point
 bool cpm
