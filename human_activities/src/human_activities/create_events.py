@@ -205,7 +205,8 @@ def get_event(recording, path, soma_objects, config):
 
     """directories containing the data"""
     d1 = os.path.join(path, recording)
-    d_sk = os.path.join(d1, 'skeleton/')
+    #d_sk = os.path.join(d1, 'skeleton/')
+    d_sk = os.path.join(d1, 'cpm_skeleton/')
     d_robot = os.path.join(d1, 'robot/')
 
     # If recording has been restricted with ROIs:
@@ -249,7 +250,9 @@ def get_event(recording, path, soma_objects, config):
         for file in sorted(sk_files):
             # original_frame = int(file.split('.')[0].split('_')[1])
             # if original_frame % config['reduce_frame_rate'] != 0: continue
-            frame = int(file.split('.')[0].split('_')[1])
+            #frame = int(file.split('.')[0].split('_')[1])
+            # new file format: "cpm_skl_00540.txt"
+            frame = int(file.split('.')[0].split('_')[-1])
             if frame < int(st) or frame > int(end): continue
 
             e.sorted_timestamps.append(frame)
@@ -410,7 +413,7 @@ def get_openni_values(f1):
         x = float(line[3])
         y = float(line[4])
         z = float(line[5])
-        c = float(line[6])
+        # c = float(line[6])
         openni_values[joint_name] = [x,y,z]
         # openni_values[joint_name]['x2d']=x2d
         # openni_values[joint_name]['y2d']=y2d

@@ -3,6 +3,7 @@ string date
 string time
 time start_time
 geometry_msgs/Point map_point
+bool qsrs
 bool cpm
 bool activity
 float64[] topics

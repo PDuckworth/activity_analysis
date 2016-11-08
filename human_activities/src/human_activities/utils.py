@@ -28,7 +28,7 @@ def save_event(e, loc=None):
 def load_e(directory, event_file):
     """Loads an event file along with exception raise msgs"""
     try:
-        file = directory + "/" + event_file
+        file = directory + "/" + event_file + ".p"
         with open(file, 'r') as f:
             e = pickle.load(f)
         return e

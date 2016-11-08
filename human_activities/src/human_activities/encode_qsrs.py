@@ -17,6 +17,7 @@ from qsrlib_qstag.utils import *
 
 def worker_qsrs(chunk):
     (file_, path, config) = chunk
+    #print "\n", path, file_
     e = utils.load_e(path, file_)
 
     dynamic_args = {}
@@ -36,7 +37,7 @@ def worker_qsrs(chunk):
         try:
             generic_object = "_".join(ob.split("_")[:-1])
             object_types[ob] = generic_object
-            print "object generic", generic_object
+            # print "object generic", generic_object
         except:
             print "didnt add:", object
     dynamic_args["qstag"]["object_types"] = object_types
