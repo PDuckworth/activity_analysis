@@ -28,6 +28,7 @@ class Learning_server(object):
         self.batch_size= self.ol.config['events']['batch_size']
         self.learn_store = MessageStoreProxy(database='message_store', collection='activity_learning')
         self.msg_store = MessageStoreProxy(database='message_store', collection='activity_learning_stats')
+        #self.cpm_flag = rospy.get_param("~use_cpm", False)
 
         self.last_learn_date = ""
         self.last_learn_success  = bool()
@@ -38,7 +39,11 @@ class Learning_server(object):
         return False
 
     def query_msg_store(self):
-        query = {"cpm":True, "qsrs":False, "activity":False, "temporal":False}
+        """Queries the database and gets some data to learn on."""
+        query = {"cpm":False, "qsrs":False, "activity":False, "temporal":False}
+        if self.ol.config["events"]["use_cpm"] == True:
+            query["cpm"] = True
+
         #query = {"cpm":True}
         result = self.learn_store.query(type=HumanActivities._type, message_query=query, limit=self.batch_size)
         uuids = []
@@ -75,7 +80,11 @@ class Learning_server(object):
             for ret in uuids_to_process:
                 if self.cond(): break
 
-                file_name = uuids_dict[ret.uuid]
+                try:
+                    file_name = uuids_dict[ret.uuid]
+                except KeyError:
+                    print "--no folder for: %s" % ret.uuid
+                    continue
                 if self.ol.get_events(ret.date, file_name):                #convert skeleton into world frame coords
                     self.ol.encode_qsrs_sequentially(ret.date, file_name)  #encode the observation into QSRs
                     #ret.qsrs = True
@@ -83,11 +92,12 @@ class Learning_server(object):
                     batch.append(file_name)
                     learn_date = ret.date
                 self.end = rospy.Time.now()
+            if self.cond(): break
 
             #restrict the learning to only use this batch of uuids
             if len(batch) == 0: break
             self.ol.batch = batch
-            print "batch uuids: ", batch
+            # print "batch uuids: ", batch
             print "learning date:", learn_date
 
             if self.cond(): break
@@ -118,11 +128,15 @@ class Learning_server(object):
 
     def update_learned_topics(self, uuids_to_process, uuids, gamma):
         for ret in uuids_to_process:
-            print ret.uuid, ret.topics,  uuids.index(ret.uuid)
-            ind = uuids.index(ret.uuid)
-            ret.topics = gamma[ind]
+            #print ret.uuid, ret.topics #uuids.index(ret.uuid)
+            try:
+                ind = uuids.index(ret.uuid)
+                ret.topics = gamma[ind]
+                ret.activity = True
+            except ValueError:
+                pass
+                #print "--not learned on"
             ret.qsrs = True
-            ret.activity = True
             self.learn_store.update(message=ret, message_query={"uuid":ret.uuid}, upsert=True)
 
     def remove(self):

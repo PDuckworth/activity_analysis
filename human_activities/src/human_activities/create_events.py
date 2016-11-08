@@ -205,8 +205,10 @@ def get_event(recording, path, soma_objects, config):
 
     """directories containing the data"""
     d1 = os.path.join(path, recording)
-    #d_sk = os.path.join(d1, 'skeleton/')
-    d_sk = os.path.join(d1, 'cpm_skeleton/')
+    if config["use_cpm"]:
+        d_sk = os.path.join(d1, 'cpm_skeleton/')
+    else:
+        d_sk = os.path.join(d1, 'skeleton/')
     d_robot = os.path.join(d1, 'robot/')
 
     # If recording has been restricted with ROIs:
@@ -250,11 +252,14 @@ def get_event(recording, path, soma_objects, config):
         for file in sorted(sk_files):
             # original_frame = int(file.split('.')[0].split('_')[1])
             # if original_frame % config['reduce_frame_rate'] != 0: continue
-            #frame = int(file.split('.')[0].split('_')[1])
+            
             # new file format: "cpm_skl_00540.txt"
-            frame = int(file.split('.')[0].split('_')[-1])
-            if frame < int(st) or frame > int(end): continue
+            if config["use_cpm"]:
+                frame = int(file.split('.')[0].split('_')[-1])
+            else:
+                frame = int(file.split('.')[0].split('_')[1])
 
+            if frame < int(st) or frame > int(end): continue
             e.sorted_timestamps.append(frame)
             f1 = open(d_sk+file,'r')
             # e.skeleton_data[frame] = {}

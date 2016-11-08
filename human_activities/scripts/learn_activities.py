@@ -221,7 +221,7 @@ class Offline_ActivityLearning(object):
                 list_of_histograms.append((rec, hist_path, len_of_code_book))
         #for recording in sorted(os.listdir(hist_path)):
         #    list_of_histograms.append((recording, hist_path, len_of_code_book))
-        print "LEN OF LEARN ", len(list_of_histograms)
+        # print "LEN OF LEARN ", len(list_of_histograms)
         if self.config['hists']['parallel']:
             print " -- in parallel."
             num_procs = mp.cpu_count()
@@ -243,9 +243,9 @@ class Offline_ActivityLearning(object):
         pickle.dump(uuids, f)
         f.close()
 
-        feature_space = np.vstack([hist for (uuid, hist) in results])
+        if len(results)>0:feature_space = np.vstack([hist for (uuid, hist) in results])
+        else: feature_space = np.array([])
         # new_features = h.recreate_data_with_high_instance_graphlets(accu_path, features, self.config['hists']['low_instances'])
-
         f = open(os.path.join(accu_path, "feature_space.p"), "w")
         pickle.dump(feature_space, f)
         f.close()
@@ -316,6 +316,7 @@ class Offline_ActivityLearning(object):
         print "feature_space shape:", feature_space.shape
         wordids=[]
         wordcts=[]
+        feature_counts = np.array([])
         for cnt, v in enumerate(feature_space):
             # print "cnt: ", cnt
             nonzeros=np.nonzero(v)
