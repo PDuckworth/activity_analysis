@@ -137,13 +137,15 @@ class Offline_ActivityLearning(object):
         # except:
         #     print "recording: %s in: %s something is broken." %(uuid, path)
 
-    def encode_qsrs_sequentially(self, folder, rec):
+    def encode_qsrs_sequentially(self, folder, file_name):
         """very sequential version of encode qsrs"""
         path = os.path.join(self.events_path, folder)
-        for uuid in sorted(os.listdir(path), reverse=False):
-            if rec in uuid:
-                event = (uuid, path, self.config['qsrs'])
-                eq.worker_qsrs(event)
+        event = (file_name, path, self.config['qsrs'])
+        eq.worker_qsrs(event)
+        #for uuid in sorted(os.listdir(path), reverse=False):
+        #    if rec in uuid:
+        #        event = (uuid, path, self.config['qsrs'])
+        #        eq.worker_qsrs(event)
 
     def encode_qsrs(self, folder):
         """check for any events which are not QSRs yet"""
@@ -168,11 +170,10 @@ class Offline_ActivityLearning(object):
                     eq.worker_qsrs(event)
         print "qsrs - done"
 
-    def make_temp_histograms_online(self, date, last_run_date):
+    def make_temp_histograms_online(self, this_run_date, last_run_date):
         """Create a codebook for all previously seen unique code words"""
 
         print "\nfinding all unique code words"
-        accu_path = os.path.join(self.accu_path, date)
 
         if last_run_date == "":
             codebook = np.array([])
@@ -185,9 +186,10 @@ class Offline_ActivityLearning(object):
             with open(os.path.join(prev_accu_path, "graphlets_all.p"), 'r') as f:
                 graphlets = pickle.load(f)
 
-        qsr_path = os.path.join(self.qsr_path, date)
-        codebook, graphlets = h.create_temp_histograms(qsr_path, accu_path, codebook, graphlets, self.batch)
+        #qsr_path = os.path.join(self.qsr_path, date)
+        codebook, graphlets = h.create_temp_histograms(self.qsr_path, codebook, graphlets, self.batch)
 
+        accu_path = os.path.join(self.accu_path, this_run_date)
         if not os.path.isdir(accu_path): os.system('mkdir -p ' + accu_path)
 
         print "current code book shape:", codebook.shape
@@ -201,7 +203,7 @@ class Offline_ActivityLearning(object):
         f.close()
         return
 
-    def make_term_doc_matrix(self, date):
+    def make_term_doc_matrix(self, learning_date):
         """generate a term frequency matrix using the unique code words and the histograms/graphlets not yet processed"""
         print "\ngenerating term-frequency matrix: ",
 
@@ -212,10 +214,14 @@ class Offline_ActivityLearning(object):
             return False
 
         list_of_histograms = []
-        hist_path = os.path.join(self.hist_path, date)
-        for recording in sorted(os.listdir(hist_path)):
-            list_of_histograms.append((recording, hist_path, len_of_code_book))
-
+        for rec in self.batch:
+            (date,time,uuid) = rec.split("_")
+            hist_path = os.path.join(self.hist_path, date)
+            if os.path.isfile(os.path.join(hist_path, rec+".p")):
+                list_of_histograms.append((rec, hist_path, len_of_code_book))
+        #for recording in sorted(os.listdir(hist_path)):
+        #    list_of_histograms.append((recording, hist_path, len_of_code_book))
+        # print "LEN OF LEARN ", len(list_of_histograms)
         if self.config['hists']['parallel']:
             print " -- in parallel."
             num_procs = mp.cpu_count()
@@ -231,19 +237,19 @@ class Offline_ActivityLearning(object):
                 # print "building term-freq: ", event[0]
                 results.append(h.worker_padd(event))
 
-        accu_path = os.path.join(self.accu_path, date)
+        accu_path = os.path.join(self.accu_path, learning_date)
         uuids = [uuid for (uuid, hist) in results]
         f = open(accu_path + "/list_of_uuids.p", "w")
         pickle.dump(uuids, f)
         f.close()
 
-        feature_space = np.vstack([hist for (uuid, hist) in results])
+        if len(results)>0:feature_space = np.vstack([hist for (uuid, hist) in results])
+        else: feature_space = np.array([])
         # new_features = h.recreate_data_with_high_instance_graphlets(accu_path, features, self.config['hists']['low_instances'])
-
         f = open(os.path.join(accu_path, "feature_space.p"), "w")
         pickle.dump(feature_space, f)
         f.close()
-        return feature_space
+        return uuids
 
     def learn_lsa_activities(self):
         """run tf-idf and LSA on the term frequency matrix. """
@@ -310,6 +316,7 @@ class Offline_ActivityLearning(object):
         print "feature_space shape:", feature_space.shape
         wordids=[]
         wordcts=[]
+        feature_counts = np.array([])
         for cnt, v in enumerate(feature_space):
             # print "cnt: ", cnt
             nonzeros=np.nonzero(v)
@@ -339,7 +346,7 @@ class Offline_ActivityLearning(object):
         pickle.dump(olda, f)
         f.close()
         # print "Online LDA - done.\n"
-        return
+        return gamma
 
 
 if __name__ == "__main__":

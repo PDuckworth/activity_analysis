@@ -118,6 +118,7 @@ class skeleton_server(object):
 
     def execute_cb(self, goal):
         self.listen_to_robot_pose = 1
+        rospy.sleep(1)
 
         duration = goal.duration
         start = rospy.Time.now()
@@ -480,7 +481,7 @@ class skeleton_server(object):
         if len(objects_in_roi) > 0:
             r = random.randint(0,len(objects_in_roi)-1)
             (self.selected_object, self.selected_object_pose) = objects_in_roi[r]
-            rospy.loginfo("%s objects to chose from in observe roi. Selected id: %s, %s" % (len(objects_in_roi), r, self.selected_object))
+            rospy.loginfo("%s objects to chose from in observe roi. Selected id: %s, %s" % (str(len(objects_in_roi)), str(r), self.selected_object))
             rospy.loginfo("selected object to view: %s. nav_target: (%s, %s)" % (self.selected_object, objects_in_roi[r][1].position.x, objects_in_roi[r][1].position.y))
             self.selected_object_id = r
             return True
@@ -604,7 +605,7 @@ class skeleton_server(object):
         rospy.loginfo("waiting for nav goals client")
         rospy.wait_for_service('/nav_goals')
         proxy = rospy.ServiceProxy('/nav_goals', NavGoals)
-        req = NavGoalsRequest(n=1000, inflation_radius=0.5, roi=roi)
+        req = NavGoalsRequest(n=200, inflation_radius=0.5, roi=roi)
         self.possible_nav_goals = proxy(req)  # returned list of poses
 
     def consent_ret_callback(self, msg):

@@ -8,6 +8,7 @@ import getpass, datetime
 from std_msgs.msg import String, Header
 from mongodb_store.message_store import MessageStoreProxy
 from learn_activities import Offline_ActivityLearning
+from activity_data.msg import HumanActivities
 from human_activities.msg import LearningActivitiesAction, LearningActivitiesResult, LastKnownLearningPoint, QSRProgress
 
 class Learning_server(object):
@@ -24,10 +25,11 @@ class Learning_server(object):
         # self.recordings = "ecai_Recorded_Data"
         self.path = '/home/' + getpass.getuser() + '/SkeletonDataset/'
         self.ol = Offline_ActivityLearning(self.path, self.recordings)
-
+        self.batch_size= self.ol.config['events']['batch_size']
+        self.learn_store = MessageStoreProxy(database='message_store', collection='activity_learning')
         self.msg_store = MessageStoreProxy(database='message_store', collection='activity_learning_stats')
-        self.qsr_progress_date = ""
-        self.qsr_progress_uuid = ""
+        #self.cpm_flag = rospy.get_param("~use_cpm", False)
+
         self.last_learn_date = ""
         self.last_learn_success  = bool()
 
@@ -35,6 +37,20 @@ class Learning_server(object):
         if self._as.is_preempt_requested() or (rospy.Time.now() - self.start).secs > self.duration.secs:
             return True
         return False
+
+    def query_msg_store(self):
+        """Queries the database and gets some data to learn on."""
+        query = {"cpm":False, "qsrs":False, "activity":False, "temporal":False}
+        if self.ol.config["events"]["use_cpm"] == True:
+            query["cpm"] = True
+
+        #query = {"cpm":True}
+        result = self.learn_store.query(type=HumanActivities._type, message_query=query, limit=self.batch_size)
+        uuids = []
+        for (ret, meta) in result:
+            uuids.append(ret)
+        print "query = %s. Ret: %s:%s" % (query, len(result), len(uuids))
+        return uuids
 
     def execute(self, goal):
 
@@ -45,12 +61,87 @@ class Learning_server(object):
         self.start = rospy.Time.now()
         self.end = rospy.Time.now()
 
-        #while (self.end - self.start).secs < self.duration.secs:
-        self.get_dates_to_process()
-        self.get_dates_to_learn()
-
         self.ol.get_soma_rois()      #get SOMA ROI Info
         self.ol.get_soma_objects()   #get SOMA Objects Info
+        self.get_last_learn_date()
+
+        while not self.cond():
+            uuids_to_process = self.query_msg_store()
+            dates = set([r.date for r in uuids_to_process])
+
+            #to get the folder names vs uuid
+            uuids_dict = {}
+            for date in dates:
+                for file_name in sorted(os.listdir(os.path.join(self.path, self.recordings, date)), reverse=False):
+                    k = file_name.split("_")[-1]
+                    uuids_dict[k] = file_name
+
+            batch = []
+            for ret in uuids_to_process:
+                if self.cond(): break
+
+                try:
+                    file_name = uuids_dict[ret.uuid]
+                except KeyError:
+                    print "--no folder for: %s" % ret.uuid
+                    continue
+                if self.ol.get_events(ret.date, file_name):                #convert skeleton into world frame coords
+                    self.ol.encode_qsrs_sequentially(ret.date, file_name)  #encode the observation into QSRs
+                    #ret.qsrs = True
+                    #self.learn_store.update(message=ret, message_query={"uuid":ret.uuid}, upsert=True)
+                    batch.append(file_name)
+                    learn_date = ret.date
+                self.end = rospy.Time.now()
+            if self.cond(): break
+
+            #restrict the learning to only use this batch of uuids
+            if len(batch) == 0: break
+            self.ol.batch = batch
+            # print "batch uuids: ", batch
+            print "learning date:", learn_date
+
+            if self.cond(): break
+            self.ol.make_temp_histograms_online(learn_date, self.last_learn_date)  # create histograms with local code book
+
+            if self.cond(): break
+            gamma_uuids = self.ol.make_term_doc_matrix(learn_date)  # create histograms with gloabl code book
+
+            if self.cond(): break
+            gamma = self.ol.online_lda_activities(learn_date, self.last_learn_date)  # run the new feature space into oLDA
+            self.update_last_learning(learn_date, True)
+            self.update_learned_topics(uuids_to_process, gamma_uuids, gamma)
+            rospy.loginfo("completed learning loop: %s" % learn_date)
+            self.end = rospy.Time.now()
+
+        if self._as.is_preempt_requested():
+            rospy.loginfo('%s: Preempted' % self._action_name)
+            self._as.set_preempted(LearningActivitiesResult())
+
+        elif (rospy.Time.now() - self.start).secs > self.duration.secs:
+            rospy.loginfo('%s: Timed out' % self._action_name)
+            self._as.set_preempted(LearningActivitiesResult())
+
+        else:
+            rospy.loginfo('%s: Completed' % self._action_name)
+            self._as.set_succeeded(LearningActivitiesResult())
+        return
+
+    def update_learned_topics(self, uuids_to_process, uuids, gamma):
+        for ret in uuids_to_process:
+            #print ret.uuid, ret.topics #uuids.index(ret.uuid)
+            try:
+                ind = uuids.index(ret.uuid)
+                ret.topics = gamma[ind]
+                ret.activity = True
+            except ValueError:
+                pass
+                #print "--not learned on"
+            ret.qsrs = True
+            self.learn_store.update(message=ret, message_query={"uuid":ret.uuid}, upsert=True)
+
+    def remove(self):
+        self.get_dates_to_process()
+        self.get_dates_to_learn()
 
         for date in self.not_processed_dates:
             if self.cond(): break
@@ -145,8 +236,8 @@ class Learning_server(object):
         query= {"type":"oLDA", "date_ran":date_ran}
         self.msg_store.update(message=msg, message_query=query, upsert=True)
 
-    def get_dates_to_learn(self):
-        """ Find the sequence of date folders which need to be learned.
+    def get_last_learn_date(self):
+        """ Find the last time the learning was run - i.e. where the oLDA is to update
         """
         for (ret, meta) in self.msg_store.query(LastKnownLearningPoint._type):
             if ret.type != "oLDA": continue
