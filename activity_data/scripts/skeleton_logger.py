@@ -203,7 +203,7 @@ class SkeletonManager(object):
             # add a blank activity learning message here:
             msg = HumanActivities(uuid=uuid, date=self.date, time=self.sk_mapping[uuid]['time'], \
                                   map_point=first_map_point, cpm=False, \
-                                  start_time=st, qsrs=False, activity=False, topics=[], temporal=False)
+                                  start_time=st, end_time=en, qsrs=False, activity=False, topics=[], temporal=False)
             # print "here ", msg
             self.learning_store_client.insert(message=msg)
 
