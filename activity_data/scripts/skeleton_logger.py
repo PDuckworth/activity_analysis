@@ -77,7 +77,7 @@ class SkeletonManager(object):
         self.camera = "head_xtion"
 
         self.restrict_to_rois = rospy.get_param("~use_roi", False)
-        print "restricted to soma ROI: ", self.restrict_to_rois
+
         if self.restrict_to_rois:
             self.roi_config = rospy.get_param("~roi_config", "test")
             # SOMA services
@@ -87,7 +87,7 @@ class SkeletonManager(object):
             rospy.loginfo("Done")
 
             self.get_soma_rois()
-
+            print "restricted to soma ROI: %s. %s" % (self.restrict_to_rois, self.roi_config)
 
         # listeners
         rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
@@ -121,7 +121,7 @@ class SkeletonManager(object):
         for roi in self.soma_query(query).rois:
             if roi.map_name != self.soma_map: continue
             if roi.config != self.roi_config: continue
-            if roi.geotype != "Polygon": continue
+            #if roi.geotype != "Polygon": continue
             k = roi.type + "_" + roi.id
             self.rois[k] = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
 

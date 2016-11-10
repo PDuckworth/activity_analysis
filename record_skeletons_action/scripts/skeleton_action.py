@@ -32,7 +32,7 @@ import topological_navigation.msg
 from mary_tts.msg import maryttsAction, maryttsGoal
 from mongodb_store.message_store import MessageStoreProxy
 from nav_goals_generator.srv import NavGoals, NavGoalsRequest, NavGoalsResponse
-from record_skeletons_action.msg import ViewInfo, ActivityRecordStats
+from record_skeletons_action.msg import ViewInfo#, ActivityRecordStats
 from shapely.geometry import Polygon, Point
 
 class skeleton_server(object):
@@ -186,8 +186,7 @@ class skeleton_server(object):
 
         # LOG THE STATS TO MONGO
         res = (request_consent, consent_msg)
-        observed_roi = goal.roi_config + ":" + goal.roi_id
-        self.log_view_info(res, nav_fail, observed_roi, start, end)
+        self.log_view_info(res, nav_fail,  goal.roi_config, goal.roi_id, start, end)
 
         # reset everything:
         self.reset_everything()
@@ -208,15 +207,16 @@ class skeleton_server(object):
         self.sk_publisher.reset_data()
         print "finished action\n"
 
-    def log_activity_rec_stats(self, roi):
-        """Given the action is over, log the activity recording action stats"""
-    stats = ActivityRecordStats()
+    # def log_activity_rec_stats(self, roi):
+    #     """Given the action is over, log the activity recording action stats"""
+    # stats = ActivityRecordStats()
 
-    def log_view_info(self, res, nav_fail, roi, starttime=None, endstime=None):
+    def log_view_info(self, res, nav_fail, roi_config, roi, starttime=None, endstime=None):
         """log each view point attempted - with a nav status"""
 
         vinfo = ViewInfo()
-        vinfo.waypoint = roi
+        vinfo.roi = roi
+        vinfo.roi_config = roi_config
         vinfo.map_name  = rospy.get_param('/topological_map_name', "no_map_name")
         vinfo.mode = "activity_rec"
         vinfo.starttime = int(starttime.to_sec())
@@ -227,12 +227,15 @@ class skeleton_server(object):
 
         vinfo.nav_failure = nav_fail
 
+        # two types of success - recorded someone, and got their consent
         (request_consent, consent_msg) = res
-        vinfo.success = False
-        if consent_msg == "everything": vinfo.success = True
+        vinfo.rec_success = bool(request_consent)
+        if consent_msg == "everything": vinfo.consent_success = True
+        else: vinfo.consent_success = False
 
-        vinfo.soma_objs = [self.selected_object, repr(self.selected_object_pose)]
-        rospy.loginfo("logged view stats: nav failed:%s, record:%s, consent:%s." % (vinfo.nav_failure, bool(request_consent), vinfo.success))
+        vinfo.soma_objs = self.selected_object
+        vinfo.soma_obj_pose = self.selected_object_pose
+        rospy.loginfo("logged view stats: nav failed:%s, record:%s, consent:%s." % (vinfo.nav_failure, vinfo.rec_success, vinfo.consent_success))
         self.views_msg_store.insert(vinfo)
 
 
@@ -268,11 +271,11 @@ class skeleton_server(object):
 
             if (end - start).secs > duration.secs:
                 rem_duration = rospy.Duration(0)
-                return True, rem_duration
+                return False, rem_duration
 
             if self._as.is_preempt_requested():
                 rem_duration = rospy.Duration(0)
-                return True, rem_duration
+                return False, rem_duration
 
             # Publish ViewPose for visualisation
             s = PoseStamped()
@@ -305,20 +308,26 @@ class skeleton_server(object):
             else:
                 rospy.loginfo("Reached nav goal: %s" % result)
                 obj = self.selected_object_pose
-                dist_z = abs(self.ptu_height - obj.position.z)
+                dist_z = abs(self.ptu_height - obj.position.z-0.5)
+                print "ptu: ", self.ptu_height
+                print "obj z: ",  obj.position.z
+                print "dist z: ", dist_z
+
                 p = self.possible_poses[ind]
                 dist = abs(math.hypot((p.position.x - obj.position.x), (p.position.y - obj.position.y)))
+                print "ptu: ", dist
                 ptu_tilt = math.degrees(math.atan2(dist_z, dist))
+
                 rospy.loginfo("ptu: 175, ptu tilt: %s" % ptu_tilt)
                 self.set_ptu_state(pan=175, tilt=ptu_tilt)
 
                 end = rospy.Time.now()
                 rem_duration = rospy.Duration(duration.secs - (end - start).secs)
-                return False, rem_duration
+                return True, rem_duration
 
         """IF NO VIEWS work (even the waypoint?)- try looking on mongo for one that has previously worked?"""
         rem_duration = rospy.Duration(duration.secs - (end - start).secs)
-        return True, rem_duration
+        return False, rem_duration
 
 
     def generate_viewpoints(self):
@@ -405,7 +414,7 @@ class skeleton_server(object):
         for roi in self.soma_query(query).rois:
             if roi.map_name != self.soma_map: continue
             if roi.config != self.soma_config: continue
-            if roi.geotype != "Polygon": continue
+            #if roi.geotype != "Polygon": continue
             polygon = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
 
             if polygon.contains(Point([self.robot_pose.position.x, self.robot_pose.position.y])):
@@ -428,7 +437,7 @@ class skeleton_server(object):
                 if roi.map_name != self.soma_map: continue
                 if roi.config != roi_config: continue
                 if roi.id != roi_id: continue
-                if roi.geotype != "Polygon": continue
+                #if roi.geotype != "Polygon": continue
                 observe_polygon = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
                 rospy.loginfo("Observe ROI: %s" %roi.type)
             if observe_polygon ==None:

@@ -1,4 +1,6 @@
-string waypoint  ### waypoint id 
+string roi  ### roi observing
+
+string roi_config   ### roi config to observe
 
 string map_name  ### map name
 
@@ -12,9 +14,12 @@ geometry_msgs/Pose robot_pose 	### robot pose
 
 sensor_msgs/JointState ptu_state ### ptu configuration
 
-bool nav_failure # True if navigation fails
+bool nav_success # True if navigation goto is successful
 
-bool success # True if at least one object or person was perceived 
+bool rec_success # True if recorded a person for the threshold duration
 
-string[] soma_objs ### list of soma_objs seen from the view
+bool consent_success # True if that person gave consent_success
 
+string soma_objs ### soma_obj and ID used to observe
+
+geometry_msgs/Pose soma_obj_pose ### soma_obj pose used to observe
