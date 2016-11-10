@@ -78,8 +78,8 @@ class Offline_ActivityLearning(object):
 
         for roi in self.soma_query(query).rois:
             if roi.map_name != self.soma_map: continue
-            if roi.config != self.roi_config: continue
-            if roi.geotype != "Polygon": continue
+            #if roi.config != self.roi_config: continue
+            #if roi.geotype != "Polygon": continue
             k = roi.type + "_" + roi.id
             self.rois[k] = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
         print "ROIs: ", self.rois.keys()

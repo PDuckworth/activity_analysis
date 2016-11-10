@@ -10,6 +10,8 @@ if __name__ == "__main__":
 
     for (ret, meta) in msg_store.query(type = HumanActivities._type):
         print ret.uuid
-        # ret.qsrs = False
-        
+        ret.qsrs = False
+        ret.activity = False
+        ret.topics = []
+        ret.cpm = False
         msg_store.update(message_query={"uuid":ret.uuid}, message=ret)
