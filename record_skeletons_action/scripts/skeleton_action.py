@@ -137,14 +137,14 @@ class skeleton_server(object):
         self.create_possible_navgoals()
         self.generate_viewpoints()
 
-        nav_fail, rem_duration = self.goto(duration)
+        nav_succ, rem_duration = self.goto(duration)
         self.sk_publisher.max_num_frames =  self.number_of_frames_before_consent_needed
 
         #while (end - start).secs < rem_duration.secs: # and request_consent == 0:
         consented_uuid = ""
         request_consent = 0
 
-        if not nav_fail:
+        if nav_succ:
             rospy.loginfo("init recording page and skeleton pub")
             self.signal_start_of_recording()
             self.sk_publisher.reinisialise()
@@ -182,11 +182,11 @@ class skeleton_server(object):
             end = rospy.Time.now()
 
         # after the action reset ptu and stop publisher
-        if not nav_fail: rospy.loginfo("exited loop. consent=%s" %consent_msg)
+        if nav_succ: rospy.loginfo("exited loop. consent=%s" %consent_msg)
 
         # LOG THE STATS TO MONGO
         res = (request_consent, consent_msg)
-        self.log_view_info(res, nav_fail,  goal.roi_config, goal.roi_id, start, end)
+        self.log_view_info(res, nav_succ,  goal.roi_config, goal.roi_id, start, end)
 
         # reset everything:
         self.reset_everything()
@@ -211,7 +211,7 @@ class skeleton_server(object):
     #     """Given the action is over, log the activity recording action stats"""
     # stats = ActivityRecordStats()
 
-    def log_view_info(self, res, nav_fail, roi_config, roi, starttime=None, endstime=None):
+    def log_view_info(self, res, nav_succ, roi_config, roi, starttime=None, endstime=None):
         """log each view point attempted - with a nav status"""
 
         vinfo = ViewInfo()
@@ -225,7 +225,7 @@ class skeleton_server(object):
         vinfo.ptu_state = JointState(name=['pan', 'tilt'], position=[self.ptu_values[0], self.ptu_values[1]],
             velocity= [self.ptu_values[2], self.ptu_values[3]])
 
-        vinfo.nav_failure = nav_fail
+        vinfo.nav_success = nav_succ
 
         # two types of success - recorded someone, and got their consent
         (request_consent, consent_msg) = res
@@ -235,20 +235,19 @@ class skeleton_server(object):
 
         vinfo.soma_objs = self.selected_object
         vinfo.soma_obj_pose = self.selected_object_pose
-        rospy.loginfo("logged view stats: nav failed:%s, record:%s, consent:%s." % (vinfo.nav_failure, vinfo.rec_success, vinfo.consent_success))
+        rospy.loginfo("logged view stats: nav success:%s, record:%s, consent:%s." % (vinfo.nav_success, vinfo.rec_success, vinfo.consent_success))
         self.views_msg_store.insert(vinfo)
 
 
-    def learn_best_viewpoint(self):
-        """Query the database and retrieve the good views:
-        1. where nav did fail
-        2. which recorded and received consenst.
-        """
-        query = {"mode":"activity_rec", "nav_failure":False, "success":True}
-        ret = self.views_msg_store.query(ViewInfo._type)
-        for view,meta in ret:
-            print ">>", view.soma_objs[0], view.soma_objs[1].position
-
+    # def learn_best_viewpoint(self):
+    #     """Query the database and retrieve the good views:
+    #     1. where nav did fail
+    #     2. which recorded and received consenst.
+    #     """
+    #     query = {"mode":"activity_rec", "nav_failure":False, "success":True}
+    #     ret = self.views_msg_store.query(ViewInfo._type)
+    #     for view,meta in ret:
+    #         print ">>", view.soma_objs[0], view.soma_objs[1].position
 
     def goto(self, duration):
         """
@@ -309,13 +308,8 @@ class skeleton_server(object):
                 rospy.loginfo("Reached nav goal: %s" % result)
                 obj = self.selected_object_pose
                 dist_z = abs(self.ptu_height - obj.position.z-0.5)
-                print "ptu: ", self.ptu_height
-                print "obj z: ",  obj.position.z
-                print "dist z: ", dist_z
-
                 p = self.possible_poses[ind]
                 dist = abs(math.hypot((p.position.x - obj.position.x), (p.position.y - obj.position.y)))
-                print "ptu: ", dist
                 ptu_tilt = math.degrees(math.atan2(dist_z, dist))
 
                 rospy.loginfo("ptu: 175, ptu tilt: %s" % ptu_tilt)
