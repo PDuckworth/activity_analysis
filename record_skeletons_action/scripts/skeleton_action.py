@@ -32,8 +32,7 @@ import topological_navigation.msg
 from mary_tts.msg import maryttsAction, maryttsGoal
 from mongodb_store.message_store import MessageStoreProxy
 from nav_goals_generator.srv import NavGoals, NavGoalsRequest, NavGoalsResponse
-
-from viper_ros.msg import ViewInfo
+from record_skeletons_action.msg import ViewInfo, ActivityRecordStats
 from shapely.geometry import Polygon, Point
 
 class skeleton_server(object):
@@ -209,8 +208,12 @@ class skeleton_server(object):
         self.sk_publisher.reset_data()
         print "finished action\n"
 
+    def log_activity_rec_stats(self, roi):
+        """Given the action is over, log the activity recording action stats"""
+    stats = ActivityRecordStats()
+
     def log_view_info(self, res, nav_fail, roi, starttime=None, endstime=None):
-        """Given the action is over, log the viewpoint and bool output of the recording (successfull?)"""
+        """log each view point attempted - with a nav status"""
 
         vinfo = ViewInfo()
         vinfo.waypoint = roi
@@ -259,6 +262,7 @@ class skeleton_server(object):
         start = rospy.Time.now()
         end = rospy.Time.now()
 
+        self.view_info = []
         for cnt, ind in enumerate(inds):
             """For all possible viewpoints, try to go to one - if fails, loop."""
 

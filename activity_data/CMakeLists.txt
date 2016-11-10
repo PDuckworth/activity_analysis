@@ -53,7 +53,6 @@ add_message_files(
    QsrsToMongo.msg
    Graphlets.msg
    HumanActivities.msg
-   #SkeletonComplete.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -75,7 +74,6 @@ generate_messages(
    DEPENDENCIES
    std_msgs
    geometry_msgs
-   #skeleton_tracker
 )
 
 ################################################
@@ -115,6 +113,7 @@ catkin_package(
      std_msgs
      geometry_msgs
      message_generation
+     message_runtime
 #  DEPENDS system_lib
 )
 

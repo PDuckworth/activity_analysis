@@ -9,9 +9,10 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   geometry_msgs
+  message_generation
   actionlib
   actionlib_msgs
-  viper_ros
+#  viper_ros
 #  skeleton_tracker
 )
 
@@ -49,9 +50,9 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 # Generate messages in the 'msg' folder
-#add_message_files(
-#   FILES
-#)
+add_message_files(
+   FILES ActivityRecordStats.msg
+)
 
 # Generate services in the 'srv' folder
 #add_service_files(
@@ -67,7 +68,7 @@ add_action_files(
 
 # Generate added messages and services with any dependencies listed here
 generate_messages(
- DEPENDENCIES std_msgs sensor_msgs geometry_msgs actionlib_msgs
+ DEPENDENCIES std_msgs sensor_msgs geometry_msgs actionlib_msgs #viper_ros
 )
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -101,7 +102,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #   LIBRARIES activity_data
-   CATKIN_DEPENDS rospy std_msgs sensor_msgs geometry_msgs viper_ros #skeleton_tracker
+   CATKIN_DEPENDS rospy std_msgs sensor_msgs geometry_msgs #viper_ros #skeleton_tracker
 #  DEPENDS system_lib
 )
 
