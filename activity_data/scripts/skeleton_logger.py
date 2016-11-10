@@ -184,7 +184,8 @@ class SkeletonManager(object):
             print "current node: ", self.current_node, type(self.current_node)
             print "start/end rostime:", st, en #type(st), en, type(en)
 
-        msg = SkeletonComplete(uuid = uuid, date = self.date, \
+        msg = SkeletonComplete( uuid = uuid, \
+                                date = self.sk_mapping[uuid]['date'], \
                                 time = self.sk_mapping[uuid]['time'], \
                                 skeleton_data = self.accumulate_data[uuid], \
                                 number_of_detections = len(self.accumulate_data[uuid]), \
@@ -201,9 +202,9 @@ class SkeletonManager(object):
             self._store_client.update(message=msg, message_query=query, upsert=True)
 
             # add a blank activity learning message here:
-            msg = HumanActivities(uuid=uuid, date=self.date, time=self.sk_mapping[uuid]['time'], \
-                                  map_point=first_map_point, cpm=False, \
-                                  start_time=st, end_time=en, qsrs=False, activity=False, topics=[], temporal=False)
+            msg = HumanActivities(uuid=uuid, date=self.sk_mapping[uuid]['date'], time=self.sk_mapping[uuid]['time'], \
+                                  map_point=first_map_point, cpm=False, start_time=self.accumulate_data[uuid][0].time, \
+                                  end_time=self.accumulate_data[uuid][-1].time, qsrs=False, activity=False, topics=[], temporal=False)
             # print "here ", msg
             self.learning_store_client.insert(message=msg)
 
@@ -375,7 +376,8 @@ class SkeletonManager(object):
                         # print msg.userID, msg.uuid, len(self.accumulate_data[msg.uuid])
 
     def new_user_detected(self, msg):
-        self.sk_mapping[msg.uuid] = {"state":'Tracking', "frame":1, "msgs_recieved":1}
+        date = str(datetime.datetime.now().date())
+        self.sk_mapping[msg.uuid] = {"state":'Tracking', "frame":1, "msgs_recieved":1, "date":date}
         self.accumulate_data[msg.uuid] = []
         self.accumulate_robot[msg.uuid] = []
 

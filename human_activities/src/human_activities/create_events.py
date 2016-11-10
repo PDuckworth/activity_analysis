@@ -212,6 +212,7 @@ def get_event(recording, path, soma_objects, config):
     d_robot = os.path.join(d1, 'robot/')
 
     # If recording has been restricted with ROIs:
+    region = ""
     if os.path.isfile(os.path.join(d1, 'meta.txt')):
         f1 = open(os.path.join(d1, 'meta.txt'), 'r')
         for count, line in enumerate(f1):
@@ -252,7 +253,7 @@ def get_event(recording, path, soma_objects, config):
         for file in sorted(sk_files):
             # original_frame = int(file.split('.')[0].split('_')[1])
             # if original_frame % config['reduce_frame_rate'] != 0: continue
-            
+
             # new file format: "cpm_skl_00540.txt"
             if config["use_cpm"]:
                 frame = int(file.split('.')[0].split('_')[-1])
