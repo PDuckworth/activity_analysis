@@ -13,5 +13,6 @@ if __name__ == "__main__":
         ret.qsrs = False
         ret.activity = False
         ret.topics = []
+        ret.hier_topics = []
         ret.cpm = False
         msg_store.update(message_query={"uuid":ret.uuid}, message=ret)
