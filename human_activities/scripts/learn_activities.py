@@ -344,17 +344,19 @@ class Offline_ActivityLearning(object):
         np.savetxt(lda_path + '/lambda.dat', olda._lambda)
         np.savetxt(lda_path + '/gamma.dat', gamma)
 
-        gamma__msg = [FloatList(data = g) for g in gamma]
+        gamma_msg = [FloatList(data = g) for g in gamma]
         lambda_msg = [FloatList(data = l) for l in olda._lambda]
-        print gamma__msg
-        print lambda_msg
+        #print gamma_msg
+        #print lambda_msg
 
-        msg = oLDA(K=olda._K, W = olda._W, alpha = olda._alpha, eta = olda._eta, tau0 = olda._tau0, olda._kappa, updatect = olda._updatect)
-        msg.gamma = gamma__msg
-        msg.lambda = lambda__msg
+        msg = oLDA(K=olda._K, W=olda._W, alpha=olda._alpha, eta=olda._eta, tau0=olda._tau0, kappa=olda._kappa, updatect=olda._updatect)
+        msg.gamma = gamma_msg
+        msg.lambda_ = lambda_msg
         msg.date =str(datetime.datetime.now().date())
         msg.time =str(datetime.datetime.now().time())
+        #print ">>>", msg
         self.olda_msg_store.insert(message=msg)
+        print "oLDA output to msg store"
 
         f = open(lda_path + "/olda.p", "w")
         pickle.dump(olda, f)
