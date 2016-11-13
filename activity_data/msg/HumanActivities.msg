@@ -8,4 +8,5 @@ bool qsrs
 bool cpm
 bool activity
 float64[] topics
+float64[] hier_topics
 bool temporal
