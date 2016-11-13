@@ -9,7 +9,7 @@ p {
 
 #question {
 	margin-bottom: 10px;
-	font-size: 33pt;
+	font-size: 28pt;
 }
 
 #thanks {
@@ -34,8 +34,8 @@ p {
 .container a {
     border-radius: 25px;
     margin: 8px 8px;
-    width: 340px;
-    height: 250px;
+    width: 310px;
+    height: 220px;
 	background-color: #EEEEEE;
 	color: #333333;
 	padding: 2px 6px 2px 6px;
@@ -61,7 +61,7 @@ p {
 
 .myButton{
 
-	background-size: 250px 199px;
+	background-size: 230px 179px;
     background-repeat: no-repeat;
     display: block;
     width: 250px;
@@ -71,7 +71,7 @@ p {
 
 .myButton img {
 	    margin-top: 15px;
-	width: 200px;
+	width: 180px;
 	/*height: 224px;*/
 }
 
