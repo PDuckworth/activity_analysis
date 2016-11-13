@@ -108,8 +108,8 @@ class Learning_server(object):
 
             if self.cond(): break
             gamma = self.ol.online_lda_activities(learn_date, self.last_learn_date)  # run the new feature space into oLDA
-            self.update_last_learning(learn_date, True)
-            self.update_learned_topics(uuids_to_process, gamma_uuids, gamma)
+            # self.update_last_learning(learn_date, True)
+            # self.update_learned_topics(uuids_to_process, gamma_uuids, gamma)
             rospy.loginfo("completed learning loop: %s" % learn_date)
             self.end = rospy.Time.now()
 
@@ -226,7 +226,6 @@ class Learning_server(object):
         date_ran = str(datetime.datetime.now().date())
         msg = QSRProgress(type="QSRProgress", date_ran=date_ran, last_date_used=date, uuid=uuid)
         self.msg_store.update(message=msg, message_query=query, upsert=True)
-
 
     def update_last_learning(self, date, success):
         #%todo: add success rate?

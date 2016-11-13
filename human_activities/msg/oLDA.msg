@@ -1,0 +1,11 @@
+float64[] vocab
+int8 K
+int8 W
+int32 D
+float32 alpha
+float32 eta
+float32 tau0
+float32 kappa
+int32 updatect
+FloatList[] lambda
+FloatList[] gamma

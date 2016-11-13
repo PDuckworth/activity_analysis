@@ -25,6 +25,7 @@ import human_activities.tfidf as tfidf
 import human_activities.topic_model as tm
 import human_activities.onlineldavb as onlineldavb
 import human_activities.utils as utils
+from human_activities.msg import FloatList, oLDA
 
 class Offline_ActivityLearning(object):
 
@@ -53,6 +54,7 @@ class Offline_ActivityLearning(object):
 
         self.soma_id_store = MessageStoreProxy(database='message_store', collection='soma_activity_ids_list')
         self.soma_store = MessageStoreProxy(database="somadata", collection="object")
+        self.olda_msg_store = MessageStoreProxy(database='message_store', collection='activity_topic_models')
 
     def load_config(self):
         """load a config file for all the learning parameters"""
@@ -342,12 +344,22 @@ class Offline_ActivityLearning(object):
         np.savetxt(lda_path + '/lambda.dat', olda._lambda)
         np.savetxt(lda_path + '/gamma.dat', gamma)
 
+        gamma__msg = [FloatList(data = g) for g in gamma]
+        lambda_msg = [FloatList(data = l) for l in olda._lambda]
+        print gamma__msg
+        print lambda_msg
+
+        msg = oLDA(K=olda._K, W = olda._W, alpha = olda._alpha, eta = olda._eta, tau0 = olda._tau0, olda._kappa, updatect = olda._updatect)
+        msg.gamma = gamma__msg
+        msg.lambda = lambda__msg
+        msg.date =str(datetime.datetime.now().date())
+        msg.time =str(datetime.datetime.now().time())
+        self.olda_msg_store.insert(message=msg)
+
         f = open(lda_path + "/olda.p", "w")
         pickle.dump(olda, f)
         f.close()
-        # print "Online LDA - done.\n"
         return gamma
-
 
 if __name__ == "__main__":
     #rospy.init_node("Offline Activity Learner")

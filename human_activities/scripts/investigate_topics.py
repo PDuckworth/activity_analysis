@@ -47,9 +47,13 @@ def get_dic_codebook(date, code_book, graphlets, create_graphlet_images=False):
 
 def vis_topic_model(n_top_words, olda, gamma, X, graphlets, html_file):
     print dir(olda)
-    print "\n>", olda._lambda
-    print "\n>", gamma
-    print type(graphlets), len(graphlets.keys())
+
+    for i in dir(olda):
+        print olda.i
+
+    # print "\n>", olda._lambda
+    # print "\n>", gamma
+    # print type(graphlets), len(graphlets.keys())
 
     data = {'topic_term_dists': olda._lambda,
             'doc_topic_dists': gamma,
@@ -242,6 +246,9 @@ if __name__ == "__main__":
     print "lamda:", olda._lambda.shape
     print "gamma:", gamma.shape
 
+    print code_book
+
+    sys.exit(1)
     dict_code_book = get_dic_codebook(date, code_book, graphlets, False)
     out_file = os.path.join(path, date, "oLDA", "ldavis_topic_model.html")
     vis_topic_model(top_words, olda, gamma, feature_space, dict_code_book, out_file)

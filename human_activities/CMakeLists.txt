@@ -50,6 +50,8 @@ add_message_files(
    FILES
    LastKnownLearningPoint.msg
    QSRProgress.msg
+   FloatList.msg
+   oLDA.msg
 #   Message2.msg
 )
 
