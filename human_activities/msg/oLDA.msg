@@ -1,4 +1,6 @@
-float64[] vocab
+string type
+string date
+string time
 int32 K
 int32 W
 int32 D
@@ -9,5 +11,5 @@ float32 kappa
 int32 updatect
 FloatList[] lambda_
 FloatList[] gamma
-string date
-string time
+int64[] code_book
+string[] iGraphs

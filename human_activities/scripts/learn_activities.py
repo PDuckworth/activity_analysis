@@ -172,21 +172,22 @@ class Offline_ActivityLearning(object):
                     eq.worker_qsrs(event)
         print "qsrs - done"
 
-    def make_temp_histograms_online(self, this_run_date, last_run_date):
+    def make_temp_histograms_online(self, this_run_date, last_olda):
         """Create a codebook for all previously seen unique code words"""
 
         print "\nfinding all unique code words"
+        # codebook = np.array([])
+        # graphlets = np.array([])
+        codebook = np.array(last_olda.code_book)
+        graphlets = np.array(last_olda.iGraphs)
 
-        if last_run_date == "":
-            codebook = np.array([])
-            graphlets = np.array([])
-        else:
-            print "load codebook from: %s " % last_run_date
-            prev_accu_path = os.path.join(self.accu_path, last_run_date)
-            with open(os.path.join(prev_accu_path, "code_book_all.p"), 'r') as f:
-                codebook = pickle.load(f)
-            with open(os.path.join(prev_accu_path, "graphlets_all.p"), 'r') as f:
-                graphlets = pickle.load(f)
+        print "codebook:", codebook
+        # print "load codebook from: %s " % last_run_date
+        # prev_accu_path = os.path.join(self.accu_path, last_run_date)
+        # with open(os.path.join(prev_accu_path, "code_book_all.p"), 'r') as f:
+        #     codebook = pickle.load(f)
+        # with open(os.path.join(prev_accu_path, "graphlets_all.p"), 'r') as f:
+        #     graphlets = pickle.load(f)
 
         #qsr_path = os.path.join(self.qsr_path, date)
         codebook, graphlets = h.create_temp_histograms(self.qsr_path, codebook, graphlets, self.batch)
@@ -196,14 +197,17 @@ class Offline_ActivityLearning(object):
 
         print "current code book shape:", codebook.shape
         self.current_len_of_codebook = codebook.shape[0]
-        f = open(os.path.join(accu_path, "code_book_all.p"), "w")
-        pickle.dump(codebook, f)
-        f.close()
 
-        f = open(os.path.join(accu_path, "graphlets_all.p"), "w")
-        pickle.dump(graphlets, f)
-        f.close()
-        return
+        last_olda.code_book = codebook
+        last_olda.iGraphs = graphlets
+        # f = open(os.path.join(accu_path, "code_book_all.p"), "w")
+        # pickle.dump(codebook, f)
+        # f.close()
+        #
+        # f = open(os.path.join(accu_path, "graphlets_all.p"), "w")
+        # pickle.dump(graphlets, f)
+        # f.close()
+        return last_olda
 
     def make_term_doc_matrix(self, learning_date):
         """generate a term frequency matrix using the unique code words and the histograms/graphlets not yet processed"""
@@ -245,7 +249,7 @@ class Offline_ActivityLearning(object):
         pickle.dump(uuids, f)
         f.close()
 
-        if len(results)>0:feature_space = np.vstack([hist for (uuid, hist) in results])
+        if len(results)>0: feature_space = np.vstack([hist for (uuid, hist) in results])
         else: feature_space = np.array([])
         # new_features = h.recreate_data_with_high_instance_graphlets(accu_path, features, self.config['hists']['low_instances'])
         f = open(os.path.join(accu_path, "feature_space.p"), "w")
@@ -282,38 +286,50 @@ class Offline_ActivityLearning(object):
         print "Topic Modelling - done.\n"
         return True
 
-    def online_lda_activities(self, folder, last_run_date):
+    def online_lda_activities(self, date_folder, last_olda_msg, last_run_date):
         """learn online LDA topic model. """
         print "\nLearning a topic model distributions with online LDA:"
 
-        accu_path = os.path.join(self.accu_path, folder)
+        olda = self.msg_to_olda(last_olda_ret)
+        codebook = np.array(last_olda_msg.code_book)
+        graphlets = np.array(last_olda_msg.iGraphs)
+
+        accu_path = os.path.join(self.accu_path, date_folder)
         lda_path = os.path.join(accu_path, "oLDA")
         if not os.path.exists(lda_path): os.makedirs(lda_path)
 
         #load all the required data
-        code_book, graphlets, feature_space = utils.load_learning_files_all(accu_path)
+        # code_book, graphlets, feature_space = utils.load_learning_files_all(accu_path)
+        with open(accu_path + "/feature_space.p", 'r') as f:
+            feature_space = pickle.load(f)
 
-        print "load oLDA from: ", last_run_date
-        prev_lda_path = os.path.join(self.accu_path, last_run_date, "oLDA")
-
-        # The number of documents to analyze each iteration
-        batchsize = feature_space.shape[0]
-        # The total number of documents (or an estimate of all docs)
-        D = 500
-        # The number of topics
-        K = self.config['olda']['n_topics']
-
-        # Initialize the algorithm with alpha=1/K, eta=1/K, tau_0=1024, kappa=0.7
-        if last_run_date == "":
+        #make the oLDA object class
+        vocab = msg.code_book
+        if msg.date == "":
             print "initialise olda:"
-            olda = onlineldavb.OnlineLDA(code_book, K, D, 1./K, 1./K, 1., 0.7)
+            # The number of documents to analyze each iteration
+            batchsize = feature_space.shape[0]
+            # The total number of documents (or an estimate of all docs)
+            D = 500
+            # The number of topics
+            K = self.config['olda']['n_topics']
+            olda = onlineldavb.OnlineLDA(code_book, K, D, 1./K, 1./K, 1., 0.7, 0)
         else:
-            #load the previous OLDA class
-            with open(prev_lda_path + "/olda.p", 'r') as f:
-                olda = pickle.load(f)
-            print "previous lamda shape:", olda._lambda.shape
-            print "new lam shape:", olda._lambda.shape[0], len(code_book)
+            olda = onlineldavb.OnlineLDA(vocab, msg.K, msg.D, msg.alpha, msg.eta, msg.tau0, msg.kappa, msg.updatect)
+            print "lamda has shape:", olda._lambda.shape
+            print "lamda needs shape:", olda._lambda.shape[0], len(code_book)
             olda.add_new_features(len(code_book))
+
+            # print "load oLDA from: ", last_run_date
+            # prev_lda_path = os.path.join(self.accu_path, last_run_date, "oLDA")
+            # # Initialize the algorithm with alpha=1/K, eta=1/K, tau_0=1024, kappa=0.7
+            # if last_run_date == "":
+            #     print "initialise olda:"
+            #     olda = onlineldavb.OnlineLDA(code_book, K, D, 1./K, 1./K, 1., 0.7)
+            # else:
+            #     #load the previous OLDA class
+            #     with open(prev_lda_path + "/olda.p", 'r') as f:
+            #         olda = pickle.load(f)
 
         print "feature_space shape:", feature_space.shape
         wordids=[]
@@ -334,7 +350,7 @@ class Offline_ActivityLearning(object):
 
         perwordbound = bound * feature_counts.shape[0] / (D * sum(map(sum, wordcts)))
         print 'data date: %s:  rho_t = %f,  held-out perplexity estimate = %f. LDA - Done\n' % \
-            (folder, olda._rhot, np.exp(-perwordbound))
+            (date_folder, olda._rhot, np.exp(-perwordbound))
 
         # Save lambda, the parameters to the variational distributions
         # over topics, and gamma, the parameters to the variational
@@ -346,22 +362,22 @@ class Offline_ActivityLearning(object):
 
         gamma_msg = [FloatList(data = g) for g in gamma]
         lambda_msg = [FloatList(data = l) for l in olda._lambda]
-        #print gamma_msg
-        #print lambda_msg
+        print gamma_msg
+        print lambda_msg
 
         msg = oLDA(K=olda._K, W=olda._W, alpha=olda._alpha, eta=olda._eta, tau0=olda._tau0, kappa=olda._kappa, updatect=olda._updatect)
-        msg.gamma = gamma_msg
-        msg.lambda_ = lambda_msg
+        msg.type = "oLDA"
         msg.date =str(datetime.datetime.now().date())
         msg.time =str(datetime.datetime.now().time())
-        #print ">>>", msg
-        self.olda_msg_store.insert(message=msg)
-        print "oLDA output to msg store"
+        msg.gamma = gamma_msg
+        msg.lambda_ = lambda_msg
+        msg.code_book = code_book
+        msg.iGraphs = graphlets
 
         f = open(lda_path + "/olda.p", "w")
         pickle.dump(olda, f)
         f.close()
-        return gamma
+        return msg
 
 if __name__ == "__main__":
     #rospy.init_node("Offline Activity Learner")

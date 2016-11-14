@@ -38,7 +38,7 @@ class OnlineLDA:
     Implements online VB for LDA as described in (Hoffman et al. 2010).
     """
 
-    def __init__(self, vocab, K, D, alpha, eta, tau0, kappa):
+    def __init__(self, vocab, K, D, alpha, eta, tau0, kappa, updatect):
         """
         Arguments:
         K: Number of topics
@@ -70,7 +70,7 @@ class OnlineLDA:
         self._eta = eta
         self._tau0 = tau0 + 1
         self._kappa = kappa
-        self._updatect = 0
+        self._updatect = updatect
 
         # Initialize the variational distribution q(beta|lambda)
         self._lambda = 1*np.random.gamma(100., 1./100., (self._K, self._W))
