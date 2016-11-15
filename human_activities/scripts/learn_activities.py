@@ -83,6 +83,7 @@ class Offline_ActivityLearning(object):
             #if roi.config != self.roi_config: continue
             #if roi.geotype != "Polygon": continue
             k = roi.type + "_" + roi.id
+            k = k.replace(" ", "")
             self.rois[k] = Polygon([ (p.position.x, p.position.y) for p in roi.posearray.poses])
         print "ROIs: ", self.rois.keys()
 
@@ -100,7 +101,7 @@ class Offline_ActivityLearning(object):
                 k = ob.type + "_" + ob.id
                 p = ob.pose.position
                 all_objects[k] = (p.x, p.y, p.z)
-        # print "\nall_objects >> ", all_objects#.keys()
+        #print "\nall_objects> ", all_objects.keys()
 
         for r, poly in self.rois.items():
             self.soma_objects[r] = {}

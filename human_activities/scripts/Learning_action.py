@@ -98,7 +98,7 @@ class Learning_server(object):
             if self.cond(): break
 
             #restrict the learning to only use this batch of uuids
-            if len(batch) == 0: break
+            if len(batch) == 0: continue #break
             self.ol.batch = batch
             # print "batch uuids: ", batch
             print "learning date:", learn_date
