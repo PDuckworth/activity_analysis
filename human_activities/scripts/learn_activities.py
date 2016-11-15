@@ -178,10 +178,18 @@ class Offline_ActivityLearning(object):
         print "\nfinding all unique code words"
         # codebook = np.array([])
         # graphlets = np.array([])
-        codebook = np.array(last_olda.code_book)
-        graphlets = np.array(last_olda.iGraphs)
+        #print type(last_olda.iGraphs)
 
-        print "codebook:", codebook
+        if last_olda.date == "": 
+            graphlets = np.array([])
+        else: 
+            #print pickle.loads(last_olda.iGraphs)
+            graphlets = np.array(pickle.loads(last_olda.iGraphs))
+
+        codebook = np.array(last_olda.code_book)
+        # graphlets = np.array(last_olda.iGraphs)
+
+        #print "codebook:", codebook
         # print "load codebook from: %s " % last_run_date
         # prev_accu_path = os.path.join(self.accu_path, last_run_date)
         # with open(os.path.join(prev_accu_path, "code_book_all.p"), 'r') as f:
@@ -198,8 +206,8 @@ class Offline_ActivityLearning(object):
         print "current code book shape:", codebook.shape
         self.current_len_of_codebook = codebook.shape[0]
 
-        last_olda.code_book = codebook
-        last_olda.iGraphs = graphlets
+        last_olda.code_book = list(codebook)
+        last_olda.iGraphs = pickle.dumps(graphlets)
         # f = open(os.path.join(accu_path, "code_book_all.p"), "w")
         # pickle.dump(codebook, f)
         # f.close()
@@ -286,14 +294,12 @@ class Offline_ActivityLearning(object):
         print "Topic Modelling - done.\n"
         return True
 
-    def online_lda_activities(self, date_folder, last_olda_msg, last_run_date):
+    def online_lda_activities(self, date_folder, msg):
         """learn online LDA topic model. """
         print "\nLearning a topic model distributions with online LDA:"
 
-        olda = self.msg_to_olda(last_olda_ret)
-        codebook = np.array(last_olda_msg.code_book)
-        graphlets = np.array(last_olda_msg.iGraphs)
-
+        #olda = self.msg_to_olda(last_olda_ret)
+        codebook = np.array(msg.code_book)
         accu_path = os.path.join(self.accu_path, date_folder)
         lda_path = os.path.join(accu_path, "oLDA")
         if not os.path.exists(lda_path): os.makedirs(lda_path)
@@ -304,21 +310,21 @@ class Offline_ActivityLearning(object):
             feature_space = pickle.load(f)
 
         #make the oLDA object class
-        vocab = msg.code_book
+        #vocab = msg.code_book
+        D = 1000
         if msg.date == "":
             print "initialise olda:"
             # The number of documents to analyze each iteration
             batchsize = feature_space.shape[0]
             # The total number of documents (or an estimate of all docs)
-            D = 500
             # The number of topics
             K = self.config['olda']['n_topics']
-            olda = onlineldavb.OnlineLDA(code_book, K, D, 1./K, 1./K, 1., 0.7, 0)
+            olda = onlineldavb.OnlineLDA(codebook, K, D, 1./K, 1./K, 1., 0.7, 0)
         else:
-            olda = onlineldavb.OnlineLDA(vocab, msg.K, msg.D, msg.alpha, msg.eta, msg.tau0, msg.kappa, msg.updatect)
+            olda = onlineldavb.OnlineLDA(codebook, msg.K, msg.D, msg.alpha, msg.eta, msg.tau0, msg.kappa, msg.updatect)
             print "lamda has shape:", olda._lambda.shape
-            print "lamda needs shape:", olda._lambda.shape[0], len(code_book)
-            olda.add_new_features(len(code_book))
+            print "lamda needs shape:", olda._lambda.shape[0], len(codebook)
+            olda.add_new_features(len(codebook))
 
             # print "load oLDA from: ", last_run_date
             # prev_lda_path = os.path.join(self.accu_path, last_run_date, "oLDA")
@@ -349,7 +355,7 @@ class Offline_ActivityLearning(object):
         # Compute an estimate of held-out perplexity
 
         perwordbound = bound * feature_counts.shape[0] / (D * sum(map(sum, wordcts)))
-        print 'data date: %s:  rho_t = %f,  held-out perplexity estimate = %f. LDA - Done\n' % \
+        print 'date: %s:  rho_t = %f,  held-out perplexity estimate = %f. LDA - Done\n' % \
             (date_folder, olda._rhot, np.exp(-perwordbound))
 
         # Save lambda, the parameters to the variational distributions
@@ -360,24 +366,20 @@ class Offline_ActivityLearning(object):
         np.savetxt(lda_path + '/lambda.dat', olda._lambda)
         np.savetxt(lda_path + '/gamma.dat', gamma)
 
-        gamma_msg = [FloatList(data = g) for g in gamma]
-        lambda_msg = [FloatList(data = l) for l in olda._lambda]
-        print gamma_msg
-        print lambda_msg
+        lambda_msg = [FloatList(data = list(l)) for l in olda._lambda]            
 
-        msg = oLDA(K=olda._K, W=olda._W, alpha=olda._alpha, eta=olda._eta, tau0=olda._tau0, kappa=olda._kappa, updatect=olda._updatect)
-        msg.type = "oLDA"
-        msg.date =str(datetime.datetime.now().date())
-        msg.time =str(datetime.datetime.now().time())
-        msg.gamma = gamma_msg
-        msg.lambda_ = lambda_msg
-        msg.code_book = code_book
-        msg.iGraphs = graphlets
+        new_msg = oLDA(K=olda._K, W=olda._W, alpha=olda._alpha, eta=olda._eta, tau0=olda._tau0, kappa=olda._kappa, updatect=olda._updatect)
+        new_msg.type = "oLDA"
+        new_msg.date =str(datetime.datetime.now().date())
+        new_msg.time =str(datetime.datetime.now().time())
+        new_msg.lambda_ = lambda_msg
+        new_msg.code_book = msg.code_book
+        new_msg.iGraphs = msg.iGraphs 
 
         f = open(lda_path + "/olda.p", "w")
         pickle.dump(olda, f)
         f.close()
-        return msg
+        return new_msg, gamma
 
 if __name__ == "__main__":
     #rospy.init_node("Offline Activity Learner")

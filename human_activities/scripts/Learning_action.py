@@ -64,9 +64,10 @@ class Learning_server(object):
 
         self.ol.get_soma_rois()      #get SOMA ROI Info
         self.ol.get_soma_objects()   #get SOMA Objects Info
-        self.get_last_learn_date()
+        #self.get_last_learn_date()
         self.get_last_oLDA_msg()
 
+        learnt_anything = False
         while not self.cond():
             uuids_to_process = self.query_msg_store()
             dates = set([r.date for r in uuids_to_process])
@@ -110,11 +111,12 @@ class Learning_server(object):
             gamma_uuids = self.ol.make_term_doc_matrix(learn_date)  # create histograms with gloabl code book
 
             if self.cond(): break
-            new_olda_ret = self.ol.online_lda_activities(learn_date, self.new_olda_ret, self.last_learn_date)  # run the new feature space into oLDA
-            # self.update_last_learning(learn_date, True)
-            self.update_learned_uuid_topics(uuids_to_process, gamma_uuids, new_olda_ret.gamma)
+            new_olda_ret, gamma = self.ol.online_lda_activities(learn_date, new_olda_ret)  # run the new feature space into oLDA
+            #self.update_last_learning(learn_date, True)
+            self.update_learned_uuid_topics(uuids_to_process, gamma_uuids, gamma)
             self.last_olda_ret = new_olda_ret
             rospy.loginfo("completed learning loop: %s" % learn_date)
+            learnt_anything = True
             self.end = rospy.Time.now()
 
         if self._as.is_preempt_requested():
@@ -129,8 +131,10 @@ class Learning_server(object):
             rospy.loginfo('%s: Completed' % self._action_name)
             self._as.set_succeeded(LearningActivitiesResult())
 
-        self.ol.olda_msg_store.insert(message=self.last_olda_ret)
-        print "oLDA output pushed to msg store"
+        if learnt_anything:
+            #print type(self.last_olda_ret.code_book)
+            self.ol.olda_msg_store.insert(message=self.last_olda_ret)
+            print "oLDA output pushed to msg store"
         return
 
     def update_learned_uuid_topics(self, uuids_to_process, uuids, gamma):
@@ -201,7 +205,7 @@ class Learning_server(object):
                 last_time = ret.time
                 self.last_olda_ret = ret
         print "Last learned date: ", last_date
-
+        #return last_date
 
 
 if __name__ == "__main__":

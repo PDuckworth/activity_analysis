@@ -10,6 +10,5 @@ float32 tau0
 float32 kappa
 int32 updatect
 FloatList[] lambda_
-FloatList[] gamma
-int64[] code_book
-string[] iGraphs
+float64[] code_book
+string iGraphs
