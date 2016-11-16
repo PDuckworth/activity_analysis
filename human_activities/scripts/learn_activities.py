@@ -379,8 +379,11 @@ class Offline_ActivityLearning(object):
         (gamma, bound) = olda.update_lambda(wordids, wordcts)
 
         # Compute an estimate of held-out perplexity
-        perwordbound = bound * wordcts[-1].shape[0] / (D * sum(map(sum, wordcts)))
-        print 'date: %s:  rho_t = %f,  held-out perplexity estimate = %f. LDA - Done\n' % \
+        word_counter = 0
+        for i in wordcts:
+            word_counter+=sum(i)
+        perwordbound = bound * len(wordids) / (D * word_counter)
+        print 'date: %s:  rho_t = %f,  held-out per-word perplexity estimate = %f. LDA - Done\n' % \
             (date_folder, olda._rhot, np.exp(-perwordbound))
 
         # Save lambda, the parameters to the variational distributions
