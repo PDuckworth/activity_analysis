@@ -12,6 +12,10 @@ import utils as utils
 def create_temp_histograms(qsr_path_, global_codebook, all_graphlets, batch):
     """sequentially create a temporary histogram whilst
     generating the codebook from observations"""
+    wordids = []
+    wordcts = []
+    uuids = []
+
     for e_cnt, event_file in enumerate(batch):
         (date, time, uuid)  = event_file.split("_")
         qsr_path = os.path.join(qsr_path_, date)
@@ -19,11 +23,13 @@ def create_temp_histograms(qsr_path_, global_codebook, all_graphlets, batch):
         #for e_cnt, event_file in sorted(enumerate(os.listdir(qsr_path))):
         #if event_file.replace(".p","") not in batch: continue
         e = utils.load_e(qsr_path, event_file)
-        
+
         if len(e.qsr_object_frame.qstag.graphlets.histogram) == 0:
             print e_cnt, event_file, "len:0"
             continue
+
         e.temp_histogram = np.array([0] * (global_codebook.shape[0]))
+        if e.label != "NA": e.uuid += "_" + e.label
 
         print "  ", e_cnt, e.uuid, "len:", len(e.qsr_object_frame.qstag.graphlets.histogram) #, len(e.qsr_joints_frame.qstag.graphlets.histogram)
         # feature_spaces = [e.qsr_object_frame.qstag.graphlets, e.qsr_joints_frame.qstag.graphlets]
@@ -42,25 +48,41 @@ def create_temp_histograms(qsr_path_, global_codebook, all_graphlets, batch):
                     # print "\n>", hash, f.graphlets[hash]
         # print "> ",len(e.temp_histogram)
         # print global_codebook, e.temp_histogram, all_graphlets
+        # print ">", np.nonzero(e.temp_histogram)[0]
+        uuids.append(e.uuid)
+        ids = np.nonzero(e.temp_histogram)[0]
+        wordids.append(ids)
+        wordcts.append(e.temp_histogram[ids])
+        # print "<", e.temp_histogram[ids]
         utils.save_event(e, "Learning/Histograms")
-    return global_codebook, all_graphlets
+
+    ret = (uuids, wordids, wordcts)
+    return global_codebook, all_graphlets, ret
 
 def worker_padd(chunk):
-    (event_file, histogram_directory, lenth_codebook) = chunk
+    (event_file, histogram_directory) = chunk
     # print "    ", event_file
-    
     e = utils.load_e(histogram_directory, event_file)
-    e.global_histogram = np.array([[0]*lenth_codebook])
 
-    ind = len(e.temp_histogram)
+    # e.global_histogram = np.array([[0]*lenth_codebook])
+    # ind = len(e.temp_histogram)
+
     #Overlay the global histogram with the temp histogram
-    e.global_histogram[0][:ind] = e.temp_histogram
+    # e.global_histogram[0][:ind] = e.temp_histogram
     # utils.save_event(e)
+
+    wordids = np.nonzero(e.temp_histogram)[0]
+    # print "wordids:", type(wordids), wordids
+
+    feature_counts= e.temp_histogram[wordids]
+    # print "counts:", type(feature_counts), feature_counts
 
     if e.label != "NA":
         e.uuid += "_" + e.label
 
-    return (e.uuid, e.global_histogram[0])
+    rets = (wordids, feature_counts)
+    # return (e.uuid, e.global_histogram[0])
+    return (e.uuid, rets)
 
 
 def recreate_data_with_high_instance_graphlets(accu_path, feature_space, low_instance):

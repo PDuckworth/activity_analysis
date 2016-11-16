@@ -108,7 +108,7 @@ class Offline_ActivityLearning(object):
             for (ob, (x,y,z)) in all_objects.items():
                 if poly.contains(Point([x, y])):
                     self.soma_objects[r][ob] = (x,y,z)
-        print "\nobjects >> ", self.soma_objects
+        print "objects >> ", [self.soma_objects[k].keys() for k in self.soma_objects.keys()]
         # print "\nobjects >> ", [self.soma_objects[r].keys() for r in self.soma_objects.keys()]
 
     # def get_skeletons_from_mongodb(self):
@@ -173,7 +173,7 @@ class Offline_ActivityLearning(object):
                     eq.worker_qsrs(event)
         print "qsrs - done"
 
-    def make_temp_histograms_online(self, this_run_date, last_olda):
+    def make_histograms_online(self, this_run_date, last_olda):
         """Create a codebook for all previously seen unique code words"""
 
         print "\nfinding all unique code words"
@@ -181,9 +181,9 @@ class Offline_ActivityLearning(object):
         # graphlets = np.array([])
         #print type(last_olda.iGraphs)
 
-        if last_olda.date == "": 
+        if last_olda.date == "":
             graphlets = np.array([])
-        else: 
+        else:
             #print pickle.loads(last_olda.iGraphs)
             graphlets = np.array(pickle.loads(last_olda.iGraphs))
 
@@ -199,7 +199,7 @@ class Offline_ActivityLearning(object):
         #     graphlets = pickle.load(f)
 
         #qsr_path = os.path.join(self.qsr_path, date)
-        codebook, graphlets = h.create_temp_histograms(self.qsr_path, codebook, graphlets, self.batch)
+        codebook, graphlets, ret = h.create_temp_histograms(self.qsr_path, codebook, graphlets, self.batch)
 
         accu_path = os.path.join(self.accu_path, this_run_date)
         if not os.path.isdir(accu_path): os.system('mkdir -p ' + accu_path)
@@ -209,6 +209,18 @@ class Offline_ActivityLearning(object):
 
         last_olda.code_book = list(codebook)
         last_olda.iGraphs = pickle.dumps(graphlets)
+
+        uuids, wordids, wordcts = ret
+
+        f = open(accu_path + "/list_of_uuids.p", "w")
+        pickle.dump(uuids, f)
+        f.close()
+
+        # new_features = h.recreate_data_with_high_instance_graphlets(accu_path, features, self.config['hists']['low_instances'])
+        f = open(os.path.join(accu_path, "feature_space.p"), "w")
+        pickle.dump((wordids, wordcts), f)
+        f.close()
+
         # f = open(os.path.join(accu_path, "code_book_all.p"), "w")
         # pickle.dump(codebook, f)
         # f.close()
@@ -216,24 +228,25 @@ class Offline_ActivityLearning(object):
         # f = open(os.path.join(accu_path, "graphlets_all.p"), "w")
         # pickle.dump(graphlets, f)
         # f.close()
-        return last_olda
+        return last_olda, ret
 
     def make_term_doc_matrix(self, learning_date):
         """generate a term frequency matrix using the unique code words and the histograms/graphlets not yet processed"""
         print "\ngenerating term-frequency matrix: ",
 
-        try:
-            len_of_code_book = self.current_len_of_codebook
-        except AttributeError as e:
-            print ">>> unknown length of codebook. exit"
-            return False
+        # try:
+        #     len_of_code_book = self.current_len_of_codebook
+        # except AttributeError as e:
+        #     print ">>> unknown length of codebook. exit"
+        #     return False
 
         list_of_histograms = []
         for rec in self.batch:
             (date,time,uuid) = rec.split("_")
             hist_path = os.path.join(self.hist_path, date)
             if os.path.isfile(os.path.join(hist_path, rec+".p")):
-                list_of_histograms.append((rec, hist_path, len_of_code_book))
+                list_of_histograms.append((rec, hist_path)) #, len_of_code_book))
+
         #for recording in sorted(os.listdir(hist_path)):
         #    list_of_histograms.append((recording, hist_path, len_of_code_book))
         # print "LEN OF LEARN ", len(list_of_histograms)
@@ -252,19 +265,25 @@ class Offline_ActivityLearning(object):
                 # print "building term-freq: ", event[0]
                 results.append(h.worker_padd(event))
 
+        # feature space is now a tuple of lists: (wordids, feature_counts) - wont work with LSA
+        # feature_space = np.vstack([rets for (uuid, rets) in results])
+        wordids = [ids for (uuid, (ids, cts)) in results]
+        wordcts = [cts for (uuid, (ids, cts)) in results]
+        uuids = [uuid for (uuid, rets) in results]
+
+        feature_space = (wordids, wordcts)
+
         accu_path = os.path.join(self.accu_path, learning_date)
-        uuids = [uuid for (uuid, hist) in results]
+
         f = open(accu_path + "/list_of_uuids.p", "w")
         pickle.dump(uuids, f)
         f.close()
 
-        if len(results)>0: feature_space = np.vstack([hist for (uuid, hist) in results])
-        else: feature_space = np.array([])
         # new_features = h.recreate_data_with_high_instance_graphlets(accu_path, features, self.config['hists']['low_instances'])
         f = open(os.path.join(accu_path, "feature_space.p"), "w")
         pickle.dump(feature_space, f)
         f.close()
-        return uuids
+        return uuids, feature_space
 
     def learn_lsa_activities(self):
         """run tf-idf and LSA on the term frequency matrix. """
@@ -295,8 +314,10 @@ class Offline_ActivityLearning(object):
         print "Topic Modelling - done.\n"
         return True
 
-    def online_lda_activities(self, date_folder, msg):
-        """learn online LDA topic model. """
+    def online_lda_activities(self, date_folder, feature_space, msg):
+        """learn online LDA topic model.
+        note: # feature space is now a tuple of lists: (wordids, feature_counts)
+        """
         print "\nLearning a topic model distributions with online LDA:"
 
         #olda = self.msg_to_olda(last_olda_ret)
@@ -307,8 +328,8 @@ class Offline_ActivityLearning(object):
 
         #load all the required data
         # code_book, graphlets, feature_space = utils.load_learning_files_all(accu_path)
-        with open(accu_path + "/feature_space.p", 'r') as f:
-            feature_space = pickle.load(f)
+        # with open(accu_path + "/feature_space.p", 'r') as f:
+        #     feature_space = pickle.load(f)
 
         #make the oLDA object class
         #vocab = msg.code_book
@@ -316,7 +337,7 @@ class Offline_ActivityLearning(object):
         if msg.date == "":
             print "initialise olda:"
             # The number of documents to analyze each iteration
-            batchsize = feature_space.shape[0]
+            batchsize = len(feature_space)
             # The total number of documents (or an estimate of all docs)
             # The number of topics
             K = self.config['olda']['n_topics']
@@ -338,24 +359,27 @@ class Offline_ActivityLearning(object):
             #     with open(prev_lda_path + "/olda.p", 'r') as f:
             #         olda = pickle.load(f)
 
-        print "feature_space shape:", feature_space.shape
-        wordids=[]
-        wordcts=[]
-        feature_counts = np.array([])
-        for cnt, v in enumerate(feature_space):
-            # print "cnt: ", cnt
-            nonzeros=np.nonzero(v)
-            available_features=nonzeros
-            wordids.append(available_features)
-            feature_counts=v[nonzeros]
-            wordcts.append(feature_counts)
+        wordids=feature_space[0]
+        wordcts=feature_space[1]
+
+        # print ">", wordids
+        # print ">", wordcts
+
+        # feature_counts = np.array([])
+        # for cnt, v in enumerate(feature_space):
+        #     # print "cnt: ", cnt
+        #     nonzeros=np.nonzero(v)
+        #     available_features=nonzeros
+        #     wordids.append(available_features)
+        #     feature_counts=v[nonzeros]
+        #     wordcts.append(feature_counts)
         # print "avail features %s, feature_cnts: %s" %(available_features, feature_counts)
-        # print "wordids %s, wordcts: %s" %(wordids, wordcts)
 
+        # print "wordids %s, \nwordcts: %s" %(wordids, wordcts)
         (gamma, bound) = olda.update_lambda(wordids, wordcts)
-        # Compute an estimate of held-out perplexity
 
-        perwordbound = bound * feature_counts.shape[0] / (D * sum(map(sum, wordcts)))
+        # Compute an estimate of held-out perplexity
+        perwordbound = bound * wordcts[-1].shape[0] / (D * sum(map(sum, wordcts)))
         print 'date: %s:  rho_t = %f,  held-out perplexity estimate = %f. LDA - Done\n' % \
             (date_folder, olda._rhot, np.exp(-perwordbound))
 
@@ -367,7 +391,7 @@ class Offline_ActivityLearning(object):
         np.savetxt(lda_path + '/lambda.dat', olda._lambda)
         np.savetxt(lda_path + '/gamma.dat', gamma)
 
-        lambda_msg = [FloatList(data = list(l)) for l in olda._lambda]            
+        lambda_msg = [FloatList(data = list(l)) for l in olda._lambda]
 
         new_msg = oLDA(K=olda._K, W=olda._W, alpha=olda._alpha, eta=olda._eta, tau0=olda._tau0, kappa=olda._kappa, updatect=olda._updatect)
         new_msg.type = "oLDA"
@@ -375,7 +399,7 @@ class Offline_ActivityLearning(object):
         new_msg.time =str(datetime.datetime.now().time())
         new_msg.lambda_ = lambda_msg
         new_msg.code_book = msg.code_book
-        new_msg.iGraphs = msg.iGraphs 
+        new_msg.iGraphs = msg.iGraphs
 
         f = open(lda_path + "/olda.p", "w")
         pickle.dump(olda, f)

@@ -113,8 +113,8 @@ class OnlineLDA:
         for d in range(0, batchD):
             # print sum(wordcts[d])
             # These are mostly just shorthand (but might help cache locality)
-            ids = wordids[d][0]
-            cts = wordcts[d][0]
+            ids = wordids[d]#[0]
+            cts = wordcts[d]#[0]
             gammad = gamma[d, :]
             Elogthetad = Elogtheta[d, :]
 
@@ -216,7 +216,7 @@ class OnlineLDA:
         # E[log p(docs | theta, beta)]
         for d in range(0, batchD):
             gammad = gamma[d, :]
-            ids = wordids[d][0]
+            ids = wordids[d]#[0]
             cts = np.array(wordcts[d])
             phinorm = np.zeros(len(ids))
             for i in range(0, len(ids)):

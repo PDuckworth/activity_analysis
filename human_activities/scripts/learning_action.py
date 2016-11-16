@@ -68,8 +68,13 @@ class Learning_server(object):
         self.get_last_oLDA_msg()
 
         learnt_anything = False
+
         while not self.cond():
             uuids_to_process = self.query_msg_store()
+            if len(uuids_to_process)==0:
+                print ">> no uuids remaining to process"
+                break
+
             dates = set([r.date for r in uuids_to_process])
 
             #to get the folder names vs uuid
@@ -105,14 +110,17 @@ class Learning_server(object):
 
             if self.cond(): break
             # self.ol.make_temp_histograms_online(learn_date, self.last_learn_date)  # create histograms with local code book
-            new_olda_ret = self.ol.make_temp_histograms_online(learn_date, self.last_olda_ret)  # create histograms with local code book
+            new_olda_ret, ret = self.ol.make_histograms_online(learn_date, self.last_olda_ret)  # create histograms with local code book
+            gamma_uuids = ret[0]
+            feature_space = (ret[1], ret[2])
+
+            # if self.cond(): break
+            # gamma_uuids, feature_space = self.ol.make_term_doc_matrix(learn_date)  # create histograms with gloabl code book
 
             if self.cond(): break
-            gamma_uuids = self.ol.make_term_doc_matrix(learn_date)  # create histograms with gloabl code book
-
-            if self.cond(): break
-            new_olda_ret, gamma = self.ol.online_lda_activities(learn_date, new_olda_ret)  # run the new feature space into oLDA
+            new_olda_ret, gamma = self.ol.online_lda_activities(learn_date, feature_space, new_olda_ret)  # run the new feature space into oLDA
             #self.update_last_learning(learn_date, True)
+
             self.update_learned_uuid_topics(uuids_to_process, gamma_uuids, gamma)
             self.last_olda_ret = new_olda_ret
             rospy.loginfo("completed learning loop: %s" % learn_date)
