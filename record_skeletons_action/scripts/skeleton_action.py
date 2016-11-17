@@ -14,7 +14,7 @@ import numpy as np
 
 from tf.transformations import quaternion_from_euler
 from std_msgs.msg import String, Header
-from geometry_msgs.msg import PoseStamped, Pose, Point32, Polygon, PoseArray
+from geometry_msgs.msg import PoseStamped, Point, Pose, Point32, Polygon, PoseArray
 from sensor_msgs.msg import JointState
 
 from std_srvs.srv import Empty, EmptyResponse
@@ -158,11 +158,14 @@ class skeleton_server(object):
 
                 # publish the location of a person as a gaze request
                 if cnt == 0 and len(incr_msgs) > 0:
-        	    if incr_msgs[-1].joints[0].name == 'head':
-                        head = Header(frame_id='head_xtion_depth_optical_frame')
-                        look_at_pose = PoseStamped(header = head, pose=incr_msgs[-1].joints[0].pose)
-                        self.publish_consent_pose.publish(look_at_pose)
-                        # self.gazeClient.send_goal(self.gazegoal)
+                    head = Header(frame_id='head_xtion_depth_optical_frame')
+                    look_at_pose = PoseStamped(header = head, pose=incr_msgs[-1].joints[0].pose)# Pose(position = Point(-0.4, -.3, 0)))
+                    self.publish_consent_pose.publish(look_at_pose)
+                    # if incr_msgs[-1].joints[0].name == 'head':
+                    #     head = Header(frame_id='head_xtion_depth_optical_frame')
+                    #     look_at_pose = PoseStamped(header = head, pose=incr_msgs[-1].joints[0].pose)
+                    #     self.publish_consent_pose.publish(look_at_pose)
+                    #     # self.gazeClient.send_goal(self.gazegoal)
 
                 if len(incr_msgs) >= self.number_of_frames_before_consent_needed:
                     request_consent = 1
