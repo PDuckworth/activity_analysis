@@ -60,12 +60,12 @@ class skeleton_server(object):
         self.soma_config = rospy.get_param("~soma_config", "test")
 
         # use range to auto select viewpoint for recording
-        self.view_dist_thresh_low = rospy.get_param("~view_dist_low", 1.5)
-        self.view_dist_thresh_high = rospy.get_param("~view_dist_high", 3.0)
+        self.view_dist_thresh_low = rospy.get_param("~view_dist_low", 2.5)
+        self.view_dist_thresh_high = rospy.get_param("~view_dist_high", 3.5)
         if self.view_dist_thresh_high <= self.view_dist_thresh_low:
             print "default distances used"
-            self.view_dist_thresh_low=1.5
-            self.view_dist_thresh_high=3.0
+            self.view_dist_thresh_low=2.5
+            self.view_dist_thresh_high=3.5
         print "possible view points range %s - %s" %(self.view_dist_thresh_low, self.view_dist_thresh_high)
         self.possible_nav_goals = []
 
@@ -171,7 +171,7 @@ class skeleton_server(object):
                     self.upload_images_to_mongo(uuid)       # uploads latest images to mongo
 
                     rospy.loginfo("breaking loop for: %s" % consented_uuid)
-                    self.reset_ptu()
+                    #self.reset_ptu() # ferdi doesnt want the ptu resetting here
                     self.speaker.send_goal(maryttsGoal(text=self.speech))
 
                     new_duration = rem_duration.secs - (end - start).secs
@@ -307,7 +307,7 @@ class skeleton_server(object):
             else:
                 rospy.loginfo("Reached nav goal: %s" % result)
                 obj = self.selected_object_pose
-                dist_z = abs(self.ptu_height - obj.position.z-0.5)
+                dist_z = abs(self.ptu_height - obj.position.z - 1.0) # equiv to raising the object 1m off the floor
                 p = self.possible_poses[ind]
                 dist = abs(math.hypot((p.position.x - obj.position.x), (p.position.y - obj.position.y)))
                 ptu_tilt = math.degrees(math.atan2(dist_z, dist))

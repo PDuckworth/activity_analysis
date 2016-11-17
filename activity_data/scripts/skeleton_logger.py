@@ -174,6 +174,13 @@ class SkeletonManager(object):
         robot_msg =  self.accumulate_robot[uuid][0]
         first_map_point = self.convert_to_world_frame(first_pose, robot_msg)
 
+        if self.restrict_to_rois:
+            for key, polygon in self.rois.items():
+                if polygon.contains(Point([first_map_point.x, first_map_point.y])):
+                    f1 = open(self.sk_mapping[uuid]['meta'] +'/meta.txt','w')
+                    f1.write('person_roi: %s' % key)
+                    f1.close()
+
         vis=False
         if vis:
             print ">>>"
@@ -231,7 +238,7 @@ class SkeletonManager(object):
             t = self.sk_mapping[msg.uuid]['time']+'_'
             print '  -new skeleton detected with id:', msg.uuid
             new_dir = self.dir1+self.date+'_'+t+msg.uuid #+'_'+waypoint
-            # print "new", new_dir
+            self.sk_mapping[msg.uuid]['meta'] = new_dir
 
             if not os.path.exists(new_dir):
                 os.makedirs(new_dir)
@@ -305,11 +312,11 @@ class SkeletonManager(object):
             f1.write('ptu_tilt:'+str(tilt)+'\n')
             f1.close()
 
-            #save the SOMA roi to file
-            if self.restrict_to_rois:
-                f1 = open(d+'/meta.txt','w')
-                f1.write('robot_roi: %s' % self.roi)
-                f1.close()
+            #save the SOMA roi to file: Now uses the person map frame roi
+            # if self.restrict_to_rois:
+            #     f1 = open(d+'/meta.txt','w')
+            #     f1.write('robot_roi: %s' % self.roi)
+            #     f1.close()
 
             # save skeleton data in bag file
             #x=float(self.robot_pose.position.x)
