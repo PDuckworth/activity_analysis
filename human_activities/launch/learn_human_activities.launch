@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="human_activities" type="learning_action.py" name="activities_learning_action" output="screen"/>
+</launch>
