@@ -206,13 +206,14 @@ class Learning_server(object):
         """ Find the last learning msg on mongo
         """
         self.last_olda_ret = oLDA()
-        last_date, last_time = "", ""
+        last_date = ""
+        last_time = ""
         for (ret, meta) in self.ol.olda_msg_store.query(oLDA._type):
-            if ret.date > last_date and ret.time > last_time:
+            if ret.date >= last_date and ret.time > last_time:
                 last_date = ret.date
                 last_time = ret.time
                 self.last_olda_ret = ret
-        print "Last learned date: ", last_date
+        print "Last learned date: ", last_date, last_time
         #return last_date
 
 

@@ -186,8 +186,7 @@ class OnlineLDA:
         # Estimate held-out likelihood for current values of lambda.
         bound = self.approx_bound(wordids, wordcts, gamma)
         # Update lambda based on documents.
-        self._lambda = self._lambda * (1-rhot) + \
-            rhot * (self._eta + self._D * sstats / len(wordids))
+        self._lambda = self._lambda * (1-rhot) + rhot * (self._eta + self._D * sstats / len(wordids))
         self._Elogbeta = dirichlet_expectation(self._lambda)
         self._expElogbeta = np.exp(self._Elogbeta)
         self._updatect += 1

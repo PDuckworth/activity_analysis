@@ -10,7 +10,8 @@ import cPickle as pickle
 import pyLDAvis
 import human_activities.onlineldavb as onlineldavb
 import human_activities.utils as utils
-
+from human_activities.msg import oLDA
+from mongodb_store.message_store import MessageStoreProxys
 
 def load_required_files(path):
     """load all the required data"""
@@ -229,6 +230,18 @@ def graphlet2dot(graph, g_name, path):
     os.system("rm %s" % out_dot_file)
     # os.system("rm %s" % foofile)
 
+
+def get_last_oLDA_msg(date):
+    """ Find the last learning msg on mongo
+    """
+    msg_store = MessageStoreProxy(database='message_store', collection='activity_topic_models')
+    for (ret, meta) in olda_msg_store.query(oLDA._type):
+        if ret.date == date:
+            #date = ret.date
+            time = ret.time
+            olda_ret = ret
+    return olda_ret
+
 if __name__ == "__main__":
 
     rospy.init_node("offline_activity_investigation")
@@ -245,10 +258,12 @@ if __name__ == "__main__":
     olda, gamma, code_book, graphlets, feature_space = load_required_files(path)
     print "lamda:", olda._lambda.shape
     print "gamma:", gamma.shape
-
     print code_book
 
+    # Using the mongo msgs:
+    print "oLDA msg:", get_last_oLDA_msg(date)
     sys.exit(1)
+
     dict_code_book = get_dic_codebook(date, code_book, graphlets, False)
     out_file = os.path.join(path, date, "oLDA", "ldavis_topic_model.html")
     vis_topic_model(top_words, olda, gamma, feature_space, dict_code_book, out_file)

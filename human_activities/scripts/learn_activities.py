@@ -333,7 +333,7 @@ class Offline_ActivityLearning(object):
 
         #make the oLDA object class
         #vocab = msg.code_book
-        D = 1000
+        D = 10000 # num of docs you expect to see in corpus (ever)
         if msg.date == "":
             print "initialise olda:"
             # The number of documents to analyze each iteration
@@ -341,9 +341,10 @@ class Offline_ActivityLearning(object):
             # The total number of documents (or an estimate of all docs)
             # The number of topics
             K = self.config['olda']['n_topics']
-            olda = onlineldavb.OnlineLDA(codebook, K, D, 1./K, 1./K, 1., 0.7, 0)
+            olda = onlineldavb.OnlineLDA(codebook, K, D, 1./K, 1./K, 1024., 0.8, 0)
         else:
             olda = onlineldavb.OnlineLDA(codebook, msg.K, msg.D, msg.alpha, msg.eta, msg.tau0, msg.kappa, msg.updatect)
+            print "update ct:", olda._updatect
             print "lamda has shape:", olda._lambda.shape
             print "lamda needs shape:", olda._lambda.shape[0], len(codebook)
             olda.add_new_features(len(codebook))
@@ -396,7 +397,7 @@ class Offline_ActivityLearning(object):
 
         lambda_msg = [FloatList(data = list(l)) for l in olda._lambda]
 
-        new_msg = oLDA(K=olda._K, W=olda._W, alpha=olda._alpha, eta=olda._eta, tau0=olda._tau0, kappa=olda._kappa, updatect=olda._updatect)
+        new_msg = oLDA(K=olda._K, D=olda._D, W=olda._W, alpha=olda._alpha, eta=olda._eta, tau0=olda._tau0, kappa=olda._kappa, updatect=olda._updatect)
         new_msg.type = "oLDA"
         new_msg.date =str(datetime.datetime.now().date())
         new_msg.time =str(datetime.datetime.now().time())
