@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 from os import listdir, path
 from os.path import isfile, join, isdir
+import pdb
 
 class ImageCreator():
 
@@ -12,12 +13,12 @@ class ImageCreator():
 
         self.video_iter = 0
         self.all_videos = [v for v in sorted(listdir(directory))  if isdir(join(directory, v))]
-
-        self.video = self.all_videos[self.video_iter]
+        #pdb.set_trace()
+        #self.video = self.all_videos[self.video_iter]
 
         self.video_len = 0
         self.directory = directory
-        self.dir = join(self.directory, self.video)
+        #self.dir = join(self.directory, self.video)
         self.skeleton_data = {}
         self.joints = [
             'head',
@@ -42,7 +43,7 @@ class ImageCreator():
         Outputs each frame to /rgb_sk folder.
         It uses the rgb images released in the DOI, and so images may be blurred for privicy reasons.
         """
-        for self.video_iter, self.video in enumerate(self.all_videos):
+        for self.video_iter, self.video in enumerate(self.all_videos): 
             self.dir = join(self.directory, self.video)
             print self.dir
 
@@ -90,12 +91,13 @@ class ImageCreator():
             True
 
 
-directory = "/home/paul/SkeletonDataset/Betty/no_consent"
+directory = "/home/strands/SkeletonDataset/no_consent"
 print "directory = %s" % directory
 
 # date_files = [f for f in listdir(directory)]
-dates = [f for f in ['2016-12-02', '2016-12-05', '2016-12-06', '2016-12-07', '2016-12-08', '2016-12-09', '2016-12-12', '2016-12-13', '2016-12-14', '2016-12-14', '2016-12-16',
-'2016-12-19', '2016-12-20', '2016-12-21', '2016-12-22', '2017-01-03', '2017-01-06', '2017-01-10', '2017-01-11', '2017-01-12', '2017-01-13', '2017-01-16'] if isdir(join(directory, f))]
+#dates = [f for f in ['2016-12-02', '2016-12-05', '2016-12-06', '2016-12-07', '2016-12-08', '2016-12-09', '2016-12-12', '2016-12-13', '2016-12-14', '2016-12-14', '2016-12-16',
+#'2016-12-19', '2016-12-20', '2016-12-21', '2016-12-22', '2017-01-03', '2017-01-06', '2017-01-10', '2017-01-11', '2017-01-12', 
+dates = [f for f in ['2017-01-13', '2017-01-16'] if isdir(join(directory, f))]
 
 for each_date in sorted(dates):
     d = join(directory, each_date)
