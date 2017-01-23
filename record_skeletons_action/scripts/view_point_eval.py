@@ -3,7 +3,7 @@ import roslib
 import tf
 import sys, os
 import rospy
-
+import math
 from tf.transformations import quaternion_from_euler
 from std_msgs.msg import String, Header
 from geometry_msgs.msg import PoseStamped, Point, Pose, Point32, Polygon, PoseArray
@@ -30,7 +30,13 @@ class view_manager(object):
         ret = self.views_msg_store.query(ViewInfo._type)
         view_points = []
         for view, meta in ret:
-            view_points.append(view.robot_pose)
+            pose = view.robot_pose
+            quaternion = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
+            roll, pitch, yaw = tf.transformations.euler_from_quaternion(quaternion)
+            yaw += math.pi
+            (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w) = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
+            view_points.append(pose)
+
         self.msg = PoseArray(poses = view_points)
         self.msg.header.frame_id = "/map"
 
