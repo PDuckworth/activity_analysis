@@ -343,10 +343,11 @@ class Offline_ActivityLearning(object):
             K = self.config['olda']['n_topics']
             olda = onlineldavb.OnlineLDA(codebook, K, D, 1./K, 1./K, 1024., 0.8, 0)
         else:
-            olda = onlineldavb.OnlineLDA(codebook, msg.K, msg.D, msg.alpha, msg.eta, msg.tau0, msg.kappa, msg.updatect)
+            olda = onlineldavb.OnlineLDA(codebook, msg.K, msg.D, msg.alpha, msg.eta, msg.tau0, msg.kappa, msg.updatect, msg.lambda_)
+
             print "update ct:", olda._updatect
             print "lamda has shape:", olda._lambda.shape
-            print "lamda needs shape:", olda._lambda.shape[0], len(codebook)
+            print "new codebook shape:", olda._lambda.shape[0], len(codebook)
             olda.add_new_features(len(codebook))
 
             # print "load oLDA from: ", last_run_date

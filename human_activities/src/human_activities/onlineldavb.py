@@ -38,7 +38,7 @@ class OnlineLDA:
     Implements online VB for LDA as described in (Hoffman et al. 2010).
     """
 
-    def __init__(self, vocab, K, D, alpha, eta, tau0, kappa, updatect):
+    def __init__(self, vocab, K, D, alpha, eta, tau0, kappa, updatect, prev_lam=[]):
         """
         Arguments:
         K: Number of topics
@@ -72,12 +72,20 @@ class OnlineLDA:
         self._kappa = kappa
         self._updatect = updatect
 
-        # Initialize the variational distribution q(beta|lambda)
-        self._lambda = 1*np.random.gamma(100., 1./100., (self._K, self._W))
+        #print "lambda: %s, %s" %(type(self._lambda), self._lambda.shape)
+        if prev_lam==[]:
+            # Initialize the variational distribution q(beta|lambda)
+            self._lambda = 1*np.random.gamma(100., 1./100., (self._K, self._W))
+        else:
+            #print "lam", prev_lam
+            self._lambda = np.vstack([l.data for l in prev_lam])
+            #print "self.lam", self._lambda
+
+        # print "lambda: %s, %s" %(type(self._lambda), self._lambda.shape)
         # print "rand: ", self._lambda.sum(axis=1)
         self._Elogbeta = dirichlet_expectation(self._lambda)
         self._expElogbeta = np.exp(self._Elogbeta)
-        print "self._K: %s self._W: %s" % (self._K,self._W)
+        print "self._K: %s. self._W: %s. _lambda.shape: %s." % (self._K, self._W, self._lambda.shape)
 
     def add_new_features(self, new_length):
         """If the codebook increases between each run, update lamda for new features

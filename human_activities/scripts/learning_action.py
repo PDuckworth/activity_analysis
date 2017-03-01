@@ -118,9 +118,16 @@ class Learning_server(object):
             # gamma_uuids, feature_space = self.ol.make_term_doc_matrix(learn_date)  # create histograms with gloabl code book
 
             if self.cond(): break
-            new_olda_ret, gamma = self.ol.online_lda_activities(learn_date, feature_space, new_olda_ret)  # run the new feature space into oLDA
-            #self.update_last_learning(learn_date, True)
+            if sum([sum(cnts) for cnts in feature_space[1]]) > 0:
+                new_olda_ret, gamma = self.ol.online_lda_activities(learn_date, feature_space, new_olda_ret)  # run the new feature space into oLDA
+            else:
+                try:
+                    print "skipping learning: ", len(gamma_uuids), self.ol._lambda.shape[1]
+                    gamma = np.zeros([len(gamma_uuids), self.ol._lambda.shape[1]])
+                except AttributeError:
+                    gamma = np.zeros([len(gamma_uuids),0])
 
+            #self.update_last_learning(learn_date, True)
             self.update_learned_uuid_topics(uuids_to_process, gamma_uuids, gamma)
             self.last_olda_ret = new_olda_ret
             rospy.loginfo("completed learning loop: %s" % learn_date)
