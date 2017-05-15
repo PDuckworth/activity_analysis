@@ -164,19 +164,61 @@ def run_topic_model(accu_path, config, feature_space):
         # print "tf: ", term_freq
     data = np.vstack(term_freq)
 
+    ## New: Reduce the code book: 
+
+    low_instance = 8
+    keep_rows = np.where((data != 0).sum(axis=0) > low_instance)[0]
+    remove_inds = np.where((data != 0).sum(axis=0) <= low_instance)[0]
+    print "orig feature space: %s. remove: %s. new space: %s." % (len(data.sum(axis=0)), len(remove_inds), len(keep_rows))
+
+    selected_features = data.T[keep_rows]
+    new_data = selected_features.T
+    new_code_book = code_book[keep_rows]
+    new_graphlets = graphlets[keep_rows]
+    print "  new code book len: ", len(new_code_book)
+
+    f = open(os.path.join(accu_path, "_code_book.p"), "w")
+    pickle.dump(new_code_book, f)
+    f.close()
+    f = open(os.path.join(accu_path, "_graphlets.p"), "w")
+    pickle.dump(new_graphlets, f)
+    f.close()
+    f = open(os.path.join(accu_path, "_code_book.p"), "w")
+    pickle.dump(new_code_book, f)
+    f.close()
+
+    print "  new graphlet book len: ", len(new_graphlets)
+    print "removed low (%s) instance graphlets" % low_instance
+    print "shape = ", new_data.shape
+
     # code_book, graphlets, data = utils.load_learning_files(accu_path)
     dictionary_codebook = {}
     try:
         import pyLDAvis
-        dictionary_codebook = get_dic_codebook(code_book, graphlets, config['create_images'])
+        dictionary_codebook = get_dic_codebook(new_code_book, new_graphlets, config['create_images'])
     except ImportError:
         print "No module pyLDAvis. Cannot visualise topic model"
 
-    print "sum of all data:", data.shape, data.sum()
-    vocab = list(code_book) # [ "{:20.0f}".format(hash).lstrip() for hash in list(code_book) ]
+    print "sum of all data:", new_data.shape, new_data.sum()
+    vocab = list(new_code_book)
+    # [ "{:20.0f}".format(hash).lstrip() for hash in list(code_book) ]
     # print "vocab:", len(vocab)
 
-    doc_topic, topic_word  = learn_topic_model(data, vocab, dictionary_codebook, config)
+    doc_topic, topic_word  = learn_topic_model(new_data, vocab, dictionary_codebook, config)
+
+    ## code_book, graphlets, data = utils.load_learning_files(accu_path)
+    #dictionary_codebook = {}
+    #try:
+    #    import pyLDAvis
+    #    dictionary_codebook = get_dic_codebook(code_book, graphlets, config['create_images'])
+    #except ImportError:
+    #    print "No module pyLDAvis. Cannot visualise topic model"
+
+    #print "sum of all data:", data.shape, data.sum()
+    #vocab = list(code_book) # [ "{:20.0f}".format(hash).lstrip() for hash in list(code_book) ]
+    ## print "vocab:", len(vocab)
+    #doc_topic, topic_word  = learn_topic_model(data, vocab, dictionary_codebook, config)
+
     print " per document topic proportions: ", doc_topic.shape
     print " per topic word distributions: ", topic_word.shape
 

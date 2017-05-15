@@ -321,6 +321,10 @@ class Offline_ActivityLearning(object):
         pickle.dump(topic_word, f)
         f.close()
 
+        f = open(accu_path + "/doc_topic.p", "w")
+        pickle.dump(topic_word, f)
+        f.close()
+
         #tm.dump_lda_output(lda_path, doc_topic, topic_word)
         print "Topic Modelling - done.\n"
         return True, doc_topic
