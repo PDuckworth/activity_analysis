@@ -46,6 +46,10 @@ class Offline_ActivityLearning(object):
         self.soma_config = self.config['events']['soma_config']
         self.roi_config = self.config['events']['roi_config']
 
+        print "soma map: ", self.soma_map
+        print "soma config: ", self.soma_config
+        print "roi config: ", self.roi_config
+
         # SOMA services
         rospy.loginfo("Wait for soma roi service")
         rospy.wait_for_service('/soma/query_rois')
@@ -93,21 +97,24 @@ class Offline_ActivityLearning(object):
         ids = [id_[0].data for id_ in ids]
         print "SOMA IDs used to observe >> ", ids
 
-        objs = self.soma_store.query(SOMAObject._type, message_query = {"id":{"$in": ids}})
+        objs = self.soma_store.query(SOMAObject._type, message_query = {})#"id":{"$in": ids}})
+        #print "obb:", objs
         all_objects = {}
         self.soma_objects = {}
         for (ob, meta) in objs:
-            if ob.id in ids:
-                k = ob.type + "_" + ob.id
-                p = ob.pose.position
-                all_objects[k] = (p.x, p.y, p.z)
-        #print "\nall_objects> ", all_objects.keys()
+            #if ob.id in ids:
+            k = ob.type + "_" + ob.id
+            #print k, type(k)
+            p = ob.pose.position
+            all_objects[k] = (p.x, p.y, p.z)
+        print "\nall_objects> ", all_objects.keys()
 
         for r, poly in self.rois.items():
             self.soma_objects[r] = {}
             for (ob, (x,y,z)) in all_objects.items():
+                #print "1.", ob, type(ob)
                 if poly.contains(Point([x, y])):
-                    self.soma_objects[r][ob] = (x,y,z)
+                    self.soma_objects[r][str(ob)] = (x,y,z+1.2)
         print "objects >> ", [self.soma_objects[k].keys() for k in self.soma_objects.keys()]
         # print "\nobjects >> ", [self.soma_objects[r].keys() for r in self.soma_objects.keys()]
 
@@ -183,11 +190,11 @@ class Offline_ActivityLearning(object):
 
         if last_olda.date == "":
             graphlets = np.array([])
+            codebook = np.array([])
         else:
             #print pickle.loads(last_olda.iGraphs)
             graphlets = np.array(pickle.loads(last_olda.iGraphs))
-
-        codebook = np.array(last_olda.code_book)
+            codebook = np.array(last_olda.code_book)
         # graphlets = np.array(last_olda.iGraphs)
 
         #print "codebook:", codebook
@@ -221,13 +228,17 @@ class Offline_ActivityLearning(object):
         pickle.dump((wordids, wordcts), f)
         f.close()
 
-        # f = open(os.path.join(accu_path, "code_book_all.p"), "w")
-        # pickle.dump(codebook, f)
-        # f.close()
-        #
-        # f = open(os.path.join(accu_path, "graphlets_all.p"), "w")
-        # pickle.dump(graphlets, f)
-        # f.close()
+        f = open(os.path.join(accu_path, "code_book.p"), "w")
+        pickle.dump(codebook, f)
+        f.close()
+        
+        #print "here:", codebook
+        #for i in codebook:
+        #    print i, type(i)
+
+        f = open(os.path.join(accu_path, "graphlets.p"), "w")
+        pickle.dump(graphlets, f)
+        f.close()
         return last_olda, ret
 
     def make_term_doc_matrix(self, learning_date):
@@ -266,30 +277,26 @@ class Offline_ActivityLearning(object):
                 results.append(h.worker_padd(event))
 
         # feature space is now a tuple of lists: (wordids, feature_counts) - wont work with LSA
-        # feature_space = np.vstack([rets for (uuid, rets) in results])
+        #feature_space = np.vstack([rets for (uuid, rets) in results])
+
         wordids = [ids for (uuid, (ids, cts)) in results]
         wordcts = [cts for (uuid, (ids, cts)) in results]
         uuids = [uuid for (uuid, rets) in results]
 
         feature_space = (wordids, wordcts)
-
         accu_path = os.path.join(self.accu_path, learning_date)
 
-        f = open(accu_path + "/list_of_uuids.p", "w")
-        pickle.dump(uuids, f)
-        f.close()
-
         # new_features = h.recreate_data_with_high_instance_graphlets(accu_path, features, self.config['hists']['low_instances'])
-        f = open(os.path.join(accu_path, "feature_space.p"), "w")
+        f = open(os.path.join(accu_path, "feature_space2.p"), "w")
         pickle.dump(feature_space, f)
         f.close()
         return uuids, feature_space
 
-    def learn_lsa_activities(self):
+    def learn_lsa_activities(self, date_folder):
         """run tf-idf and LSA on the term frequency matrix. """
         print "\nrunning tf-idf weighting, and LSA:"
 
-        accu_path = os.path.join(self.accu_path, self.date)
+        accu_path = os.path.join(self.accu_path, date_folder)
         lsa_path = os.path.join(accu_path, "LSA")
         if not os.path.exists(lsa_path): os.makedirs(lsa_path)
 
@@ -300,19 +307,23 @@ class Offline_ActivityLearning(object):
         print "LSA - done."
         return True
 
-    def learn_topic_model_activities(self):
+    def learn_topic_model_activities(self, date_folder, feature_space):
         """learn a topic model using LDA. """
         print "\nLearning a topic model with LDA:"
 
-        accu_path = os.path.join(self.accu_path, self.date)
+        accu_path = os.path.join(self.accu_path, date_folder)
         lda_path = os.path.join(accu_path, "LDA")
         if not os.path.exists(lda_path): os.makedirs(lda_path)
 
-        doc_topic, topic_word = tm.run_topic_model(accu_path, self.config['lda'])
+        doc_topic, topic_word = tm.run_topic_model(accu_path, self.config['lda'], feature_space)
 
-        tm.dump_lda_output(lda_path, doc_topic, topic_word)
+        f = open(accu_path + "/topic_word.p", "w")
+        pickle.dump(topic_word, f)
+        f.close()
+
+        #tm.dump_lda_output(lda_path, doc_topic, topic_word)
         print "Topic Modelling - done.\n"
-        return True
+        return True, doc_topic
 
     def online_lda_activities(self, date_folder, feature_space, msg):
         """learn online LDA topic model.

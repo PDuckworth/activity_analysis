@@ -26,6 +26,7 @@ class Learning_server(object):
         # self.recordings = "ecai_Recorded_Data"
         self.path = '/home/' + getpass.getuser() + '/SkeletonDataset/'
         self.ol = Offline_ActivityLearning(self.path, self.recordings)
+
         self.batch_size= self.ol.config['events']['batch_size']
         self.learn_store = MessageStoreProxy(database='message_store', collection='activity_learning')
         self.msg_store = MessageStoreProxy(database='message_store', collection='activity_learning_stats')
@@ -45,7 +46,7 @@ class Learning_server(object):
         if self.ol.config["events"]["use_cpm"] == True:
             query["cpm"] = True
 
-        #query = {"cpm":True}
+        query = {"cpm":True}
         result = self.learn_store.query(type=HumanActivities._type, message_query=query, limit=self.batch_size)
         uuids = []
         for (ret, meta) in result:
@@ -115,24 +116,30 @@ class Learning_server(object):
             feature_space = (ret[1], ret[2])
 
             # if self.cond(): break
-            # gamma_uuids, feature_space = self.ol.make_term_doc_matrix(learn_date)  # create histograms with gloabl code book
+            gamma_uuids2, feature_space2 = self.ol.make_term_doc_matrix(learn_date)  # create histograms with gloabl code book
 
             if self.cond(): break
             if sum([sum(cnts) for cnts in feature_space[1]]) > 0:
-                new_olda_ret, gamma = self.ol.online_lda_activities(learn_date, feature_space, new_olda_ret)  # run the new feature space into oLDA
+                #new_olda_ret, gamma = self.ol.online_lda_activities(learn_date, feature_space, new_olda_ret)  # run the new feature space into oLDA
+                
+                test, gamma = self.ol.learn_topic_model_activities(learn_date, feature_space2)
             else:
                 try:
                     print "skipping learning: ", len(gamma_uuids), self.ol._lambda.shape[1]
                     gamma = np.zeros([len(gamma_uuids), self.ol._lambda.shape[1]])
                 except AttributeError:
                     gamma = np.zeros([len(gamma_uuids),0])
-
+ 
+            #print "\ngamma:", gamma
             #self.update_last_learning(learn_date, True)
             self.update_learned_uuid_topics(uuids_to_process, gamma_uuids, gamma)
-            self.last_olda_ret = new_olda_ret
+            #self.last_olda_ret = new_olda_ret
             rospy.loginfo("completed learning loop: %s" % learn_date)
             learnt_anything = True
             self.end = rospy.Time.now()
+
+            #self._as.set_preempted()
+            break
 
         if self._as.is_preempt_requested():
             rospy.loginfo('%s: Preempted' % self._action_name)
@@ -148,8 +155,8 @@ class Learning_server(object):
 
         if learnt_anything:
             #print type(self.last_olda_ret.code_book)
-            self.ol.olda_msg_store.insert(message=self.last_olda_ret)
-            print "oLDA output pushed to msg store"
+            #self.ol.olda_msg_store.insert(message=self.last_olda_ret)
+            print "oLDA output NOT pushed to msg store"
         return
 
     def update_learned_uuid_topics(self, uuids_to_process, uuids, gamma):

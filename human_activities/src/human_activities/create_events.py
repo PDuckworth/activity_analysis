@@ -136,9 +136,9 @@ class event(object):
 
                 #Create a QSRLib format list of Object States (for each joint id)
                 if joint_id not in ob_states.keys():
-                    ob_states[joint_id] = [Object_State(name=joint_id, timestamp=filtered_cnt, x=x, y=y, z=z)]
+                    ob_states[joint_id] = [Object_State(name=str(joint_id), timestamp=filtered_cnt, x=x, y=y, z=z)]
                 else:
-                    ob_states[joint_id].append(Object_State(name=joint_id, timestamp=filtered_cnt, x=x, y=y, z=z))
+                    ob_states[joint_id].append(Object_State(name=str(joint_id), timestamp=filtered_cnt, x=x, y=y, z=z))
             filtered_cnt+=1
 
         # #Add all the joint IDs into the World Trace
@@ -162,9 +162,9 @@ class event(object):
             #Joints:
             for joint_id, (x, y, z) in self.map_frame_data[frame].items():
                 if joint_id not in ob_states.keys():
-                    ob_states[joint_id] = [Object_State(name=joint_id, timestamp=t, x=x, y=y, z=z)]
+                    ob_states[joint_id] = [Object_State(name=(joint_id), timestamp=t, x=x, y=y, z=z)]
                 else:
-                    ob_states[joint_id].append(Object_State(name=joint_id, timestamp=t, x=x, y=y, z=z))
+                    ob_states[joint_id].append(Object_State(name=str(joint_id), timestamp=t, x=x, y=y, z=z))
 
             # SOMA objects
             for object, (x,y,z) in world_objects.items():
@@ -221,6 +221,7 @@ def get_event(recording, path, soma_objects, config):
     objects = {}
     try:
         objects = soma_objects[region]
+        #print "objjj", objects, type(objects.keys()[0])
     except KeyError:
         for r, objs in soma_objects.items():
             for ob, position in objs.items():

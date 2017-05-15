@@ -24,30 +24,35 @@ def create_temp_histograms(qsr_path_, global_codebook, all_graphlets, batch):
         #if event_file.replace(".p","") not in batch: continue
         e = utils.load_e(qsr_path, event_file)
 
-        if len(e.qsr_object_frame.qstag.graphlets.histogram) == 0:
-            print e_cnt, event_file, "len:0"
-            continue
+        #if len(e.qsr_object_frame.qstag.graphlets.histogram) == 0:
+        #    print e_cnt, event_file, "len:0"
+        #    continue
 
         e.temp_histogram = np.array([0] * (global_codebook.shape[0]))
         if e.label != "NA": e.uuid += "_" + e.label
 
         print "  ", e_cnt, e.uuid, "len:", len(e.qsr_object_frame.qstag.graphlets.histogram) #, len(e.qsr_joints_frame.qstag.graphlets.histogram)
         # feature_spaces = [e.qsr_object_frame.qstag.graphlets, e.qsr_joints_frame.qstag.graphlets]
-        feature_spaces = [e.qsr_object_frame.qstag.graphlets]#, e.qsr_joints_frame.qstag.graphlets]
+        feature_spaces = [e.qsr_object_frame.qstag.graphlets] #, e.qsr_joints_frame.qstag.graphlets]
 
         for cnt, f in enumerate(feature_spaces):
             for freq, hash in zip(f.histogram, f.code_book):
+                hash_s = "{:20d}".format(hash).lstrip() # string
+                #print ">", hash, type(hash), hash_s
                 try:
-                    ind = np.where(global_codebook == hash)[0][0]
+                    ind = np.where(global_codebook == hash_s)[0][0]
                     e.temp_histogram[ind] += freq
                 # If the hash doesn't exist in the global codebook yet - add it
                 except IndexError:
-                    global_codebook = np.append(global_codebook, hash)
+                    #print "adding: ", hash_s
+                    global_codebook = np.append(global_codebook, hash_s)
                     e.temp_histogram = np.append(e.temp_histogram, freq)
                     all_graphlets = np.append(all_graphlets, f.graphlets[hash])
                     # print "\n>", hash, f.graphlets[hash]
         # print "> ",len(e.temp_histogram)
-        # print global_codebook, e.temp_histogram, all_graphlets
+        #print global_codebook #, e.temp_histogram, all_graphlets
+        #for i in global_codebook:
+            #print "cc", i, type(i) 
         # print ">", np.nonzero(e.temp_histogram)[0]
         uuids.append(e.uuid)
         ids = np.nonzero(e.temp_histogram)[0]

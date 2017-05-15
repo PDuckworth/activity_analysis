@@ -29,6 +29,7 @@ def worker_qsrs(chunk):
     except KeyError:
         print "check argd, qtcbs, qstag parameters in config file"
 
+    #print ">>", dynamic_args
     joint_types = {'head': 'head', 'torso': 'torso', 'left_hand': 'hand', 'right_hand': 'hand', 'left_knee': 'knee', 'right_knee': 'knee',
                    'left_shoulder': 'shoulder', 'right_shoulder': 'shoulder', 'head-torso': 'tpcc-plane'}
     object_types = joint_types.copy()
@@ -36,10 +37,11 @@ def worker_qsrs(chunk):
     for ob, pos in e.objects.items():
         try:
             generic_object = "_".join(ob.split("_")[:-1])
-            object_types[ob] = generic_object
+            object_types[str(ob)] = generic_object
             # print "object generic", generic_object
         except:
             print "didnt add:", object
+    #print "here", object_types
     dynamic_args["qstag"]["object_types"] = object_types
 
     # for i,j in object_types.items():
@@ -51,7 +53,7 @@ def worker_qsrs(chunk):
     for ob, pos in e.objects.items():
         qsrs_for.append((str(ob), 'left_hand'))
         qsrs_for.append((str(ob), 'right_hand'))
-        qsrs_for.append((str(ob), 'torso'))
+        #qsrs_for.append((str(ob), 'torso'))
     dynamic_args['argd']["qsrs_for"] = qsrs_for
     dynamic_args['qtcbs']["qsrs_for"] = qsrs_for
 
@@ -61,19 +63,20 @@ def worker_qsrs(chunk):
     req = QSRlib_Request_Message(config['which_qsr'], input_data=e.map_world, dynamic_args=dynamic_args)
     e.qsr_object_frame = qsrlib.request_qsrs(req_msg=req)
 
-    # print ">", e.qsr_object_frame.qstag.graphlets.histogram
-    # for i in e.qsr_object_frame.qstag.episodes:
-    #     print i
-    # sys.exit(1)
+    #print ">", e.qsr_object_frame.qstag.graphlets.histogram
+    #for i in e.qsr_object_frame.qstag.episodes:
+    #    print i
+    #sys.exit(1)
     """2. CREATE QSRs for joints - TPCC"""
-    # print "TPCC: ",
+    #print "TPCC: ",
     # # e.qsr_joint_frame = get_joint_frame_qsrs(file, e.camera_world, joint_types, dynamic_args)
-    # qsrs_for = [('head', 'torso', ob) if ob not in ['head', 'torso'] and ob != 'head-torso' else () for ob in joint_types.keys()]
-    # dynamic_args['tpcc'] = {"qsrs_for": qsrs_for}
-    # dynamic_args["qstag"]["params"] = {"min_rows": 1, "max_rows": 2, "max_eps": 4}
-    # qsrlib = QSRlib()
-    # req = QSRlib_Request_Message(which_qsr="tpcc", input_data=e.camera_world, dynamic_args=dynamic_args)
-    # e.qsr_joints_frame = qsrlib.request_qsrs(req_msg=req)
+
+    #qsrs_for = [('head', 'torso', ob) if ob not in ['head', 'torso'] and ob != 'head-torso' else () for ob in joint_types.keys()]
+    #dynamic_args['tpcc'] = {"qsrs_for": qsrs_for}
+    #dynamic_args["qstag"]["params"] = {"min_rows": 1, "max_rows": 1, "max_eps": 2}
+    #qsrlib = QSRlib()
+    #req = QSRlib_Request_Message(which_qsr="tpcc", input_data=e.camera_world, dynamic_args=dynamic_args)
+    #e.qsr_joints_frame = qsrlib.request_qsrs(req_msg=req)
     # # pretty_print_world_qsr_trace("tpcc", e.qsr_joints_frame)
     # # print e.qsr_joints_frame.qstag.graphlets.histogram
     utils.save_event(e, "Learning/QSR_Worlds")

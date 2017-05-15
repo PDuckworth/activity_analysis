@@ -81,7 +81,7 @@ def learn_topic_model(X, vocab, graphlets, config, dbg=False):
         import pyLDAvis
         vis_data = pyLDAvis.prepare(model.topic_word_, model.doc_topic_, doc_lengths, graphlets.keys(), feature_freq)
         # vis_data = pp.prepare(model.topic_word_, model.doc_topic_, doc_lengths, graphlets.keys(), feature_freq)
-        html_file = "../LDAvis/Learnt_Models/topic_model_" + id + ".html"
+        html_file = ".topic_model.html"
         pyLDAvis.save_html(vis_data, html_file)
         print "PyLDAVis ran. output: %s" % html_file
 
@@ -134,7 +134,7 @@ def get_dic_codebook(code_book, graphlets, create_graphlet_images=False):
 
     dictionary_codebook = {}
     for hash, graph in zip(code_book, graphlets):
-        g_name = "{:20.0f}".format(hash).lstrip()
+        g_name = hash #"{:20.0f}".format(hash).lstrip()
         dictionary_codebook[g_name] = graph
 
     if create_graphlet_images:
@@ -143,9 +143,28 @@ def get_dic_codebook(code_book, graphlets, create_graphlet_images=False):
         create_codebook_images(dictionary_codebook, image_path, dbg)
     return dictionary_codebook
 
-def run_topic_model(accu_path, config):
+def run_topic_model(accu_path, config, feature_space):
 
-    code_book, graphlets, data = utils.load_learning_files(accu_path)
+    with open(accu_path + "/code_book.p", 'r') as f:
+        code_book = pickle.load(f)
+    with open(accu_path + "/graphlets.p", 'r') as f:
+        graphlets = pickle.load(f)
+
+    (wordids, wordcnts) = feature_space
+    codebook_length = len(code_book)
+    term_freq = []
+    for counter, (ids, cnts) in enumerate(zip(wordids, wordcnts)):
+        # print ids, cnts
+        vec = np.array([0] * codebook_length)
+        for i, cnt in zip(ids, cnts):
+            # print i, cnt
+            vec[i] = cnt
+        # print "vec: ", vec
+        term_freq.append(vec)
+        # print "tf: ", term_freq
+    data = np.vstack(term_freq)
+
+    # code_book, graphlets, data = utils.load_learning_files(accu_path)
     dictionary_codebook = {}
     try:
         import pyLDAvis
@@ -154,7 +173,7 @@ def run_topic_model(accu_path, config):
         print "No module pyLDAvis. Cannot visualise topic model"
 
     print "sum of all data:", data.shape, data.sum()
-    vocab = [ "{:20.0f}".format(hash).lstrip() for hash in list(code_book) ]
+    vocab = list(code_book) # [ "{:20.0f}".format(hash).lstrip() for hash in list(code_book) ]
     # print "vocab:", len(vocab)
 
     doc_topic, topic_word  = learn_topic_model(data, vocab, dictionary_codebook, config)
