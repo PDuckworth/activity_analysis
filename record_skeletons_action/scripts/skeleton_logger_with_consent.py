@@ -19,7 +19,7 @@ from mongodb_store.message_store import MessageStoreProxy
 class SkeletonManagerConsent(object):
     """To deal with Skeleton messages once they are published as incremental msgs by OpenNI2."""
 
-    def __init__(self, dist_thresh, frame_rate_reduce=3):
+    def __init__(self, dist_thresh, frame_rate_reduce=1):
 
         self.reinisialise()
         self.reset_data()
@@ -39,6 +39,8 @@ class SkeletonManagerConsent(object):
         
         # listeners
         rospy.Subscriber("skeleton_data/incremental", skeleton_message, self.incremental_callback)
+        #rospy.Subscriber("skeleton_data/cnn", skeleton_message, self.incremental_callback)
+
         rospy.Subscriber('/'+self.camera+'/rgb/image_color', sensor_msgs.msg.Image, callback=self.rgb_callback, queue_size=10)
         #rospy.Subscriber('/'+self.camera+'/rgb/sk_tracks', sensor_msgs.msg.Image, callback=self.rgb_sk_callback, queue_size=10)
         rospy.Subscriber('/'+self.camera+'/depth/image' , sensor_msgs.msg.Image, self.depth_callback, queue_size=10)

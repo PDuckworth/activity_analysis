@@ -48,7 +48,7 @@ class skeleton_server(object):
                                                     execute_cb=self.execute_cb, auto_start=False)
         self._as.start()
 
-        reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce_consent", 3)
+        reduce_frame_rate_by = rospy.get_param("~frame_rate_reduce_consent", 1)
         self.number_of_frames_before_consent_needed = rospy.get_param("~consent_num_frames", num_of_frames)
         rospy.loginfo("Required num of frames: %s" % self.number_of_frames_before_consent_needed)
         rospy.loginfo("Frame rate reduced by /%s" % reduce_frame_rate_by)
@@ -56,12 +56,12 @@ class skeleton_server(object):
         dist_thresh = rospy.get_param("~dist_thresh", 1.5)
         rospy.loginfo("distance threshold %s" % dist_thresh)
 
-        self.soma_map = rospy.get_param("~soma_map", "collect_data_map_cleaned")
-        self.soma_config = rospy.get_param("~soma_config", "test")
+        self.soma_map = rospy.get_param("~soma_map", "aaf_y4_demo")
+        self.soma_config = rospy.get_param("~soma_config", "human_activity")
 
         # use range to auto select viewpoint for recording
-        self.view_dist_thresh_low = rospy.get_param("~view_dist_low", 2.5)
-        self.view_dist_thresh_high = rospy.get_param("~view_dist_high", 3.5)
+        self.view_dist_thresh_low = rospy.get_param("~view_dist_low", 3.4)
+        self.view_dist_thresh_high = rospy.get_param("~view_dist_high", 4.0)
         if self.view_dist_thresh_high <= self.view_dist_thresh_low:
             print "default distances used"
             self.view_dist_thresh_low=2.5
@@ -126,7 +126,8 @@ class skeleton_server(object):
         rospy.loginfo("Goal: Dur: %s ROI: %s" % (goal.duration.secs, goal.roi_id))
 
         # Obtains the Robot's region - False if no roi.
-        if not self.get_robot_roi(): return self._as.set_preempted()
+        if not self.get_robot_roi(): 
+            return self._as.set_preempted()
 
         # Obtains the specified ROI to observe - if none, use robot's roi
         observe_polygon = self.get_roi_to_observe(goal.roi_id, goal.roi_config)
@@ -310,7 +311,7 @@ class skeleton_server(object):
             else:
                 rospy.loginfo("Reached nav goal: %s" % result)
                 obj = self.selected_object_pose
-                dist_z = abs(self.ptu_height - obj.position.z - 1.0) # equiv to raising the object 1m off the floor
+                dist_z = abs(self.ptu_height - obj.position.z - 0.85) # equiv to raising the object 1m off the floor
                 p = self.possible_poses[ind]
                 dist = abs(math.hypot((p.position.x - obj.position.x), (p.position.y - obj.position.y)))
                 ptu_tilt = math.degrees(math.atan2(dist_z, dist))
@@ -409,6 +410,7 @@ class skeleton_server(object):
         # for (roi, meta) in self.soma_roi_store.query(SOMAROIObject._type):  # OLD SOMA
         query = SOMAQueryROIsRequest(query_type=0, roiconfigs=[self.soma_config], returnmostrecent = True)
         for roi in self.soma_query(query).rois:
+            #print ">>", roi
             if roi.map_name != self.soma_map: continue
             if roi.config != self.soma_config: continue
             #if roi.geotype != "Polygon": continue
@@ -572,6 +574,7 @@ class skeleton_server(object):
         rospy.wait_for_service('return_to_main_webpage', timeout=10)
         main_webpage_return = rospy.ServiceProxy('return_to_main_webpage', Empty)
         # tell the webserver to go back to the main page - if no consent was requested
+        #strands_webserver.client_utils.display_url(0, 'http://werner:8080/')
         main_webpage_return()
 
     def reset_ptu(self):

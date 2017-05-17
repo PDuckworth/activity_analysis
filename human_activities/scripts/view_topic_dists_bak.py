@@ -113,7 +113,7 @@ if __name__ == '__main__':
     path = '/home/' + getpass.getuser() + '/SkeletonDataset/Learning/accumulate_data'
     date = [f for f in sorted(os.listdir(path)) if os.path.isdir(os.path.join(path, f))][-1]
     accu_path = os.path.join(path, date)
-    # accu_path  = "/tmp"
+    #accu_path  = "/tmp"
     with open(accu_path + "/topic_word.p", 'r') as f:
         topic_words = pickle.load(f)
     with open(accu_path + "/doc_topic.p", 'r') as f:
@@ -125,51 +125,43 @@ if __name__ == '__main__':
 
     N = topic_words.shape[1]
     wordids = range(topic_words.shape[1])
-    topic_names = ["a"]#, "b", "c", "d", "e", "f"]
+    topic_names = ["a", "b", "c", "d", "e", "f"]
 
     num_topics = topic_words.shape[0]
-    data1 = []
+    data = [wordids]
     for topic_id, topic in enumerate(topic_names[:num_topics])  :
         tup = (topic_names[topic_id], [list(topic_words[topic_id])])
-        data1.append(tup)
+        data.append(tup)
 
-    d = []
-    for topic_id in xrange(num_topics):
-        d.append(list(topic_words[topic_id]))
-    data = ("", d)
-
-    # import pdb; pdb.set_trace()
 
     theta = radar_factory(N, frame='polygon')
 
-    spoke_labels = wordids
-    # fig, axes = plt.subplots(figsize=(9, 9), nrows=2, ncols=2, subplot_kw=dict(projection='radar'))
-    # fig.subplots_adjust(wspace=0.25, hspace=0.20, top=0.85, bottom=0.05)
-
+    spoke_labels = data.pop(0)
+    fig, axes = plt.subplots(figsize=(9, 9), nrows=2, ncols=2,
+                             subplot_kw=dict(projection='radar'))
+    fig.subplots_adjust(wspace=0.25, hspace=0.20, top=0.85, bottom=0.05)
 
     colors = ['b', 'r', 'g', 'm', 'y']
     # Plot the four cases from the example data on separate axes
-    (title, case_data) = data
-    # for ax, (title, case_data) in zip(axes.flatten(), data):
-
-    fig, ax = plt.subplots(figsize=(9, 9), nrows=1, ncols=1, subplot_kw=dict(projection='radar'))
-    ax.set_rgrids([0.2, 0.4, 0.6, 0.8])
-    ax.set_title(title, weight='bold', size='medium', position=(0.5, 1.1),
-                 horizontalalignment='center', verticalalignment='center')
-    for d, color in zip(case_data, colors):
-        ax.plot(theta, d, color=color)
-        ax.fill(theta, d, facecolor=color, alpha=0.25)
-    ax.set_varlabels(spoke_labels)
+    for ax, (title, case_data) in zip(axes.flatten(), data):
+        ax.set_rgrids([0.2, 0.4, 0.6, 0.8])
+        ax.set_title(title, weight='bold', size='medium', position=(0.5, 1.1),
+                     horizontalalignment='center', verticalalignment='center')
+        for d, color in zip(case_data, colors):
+            ax.plot(theta, d, color=color)
+            ax.fill(theta, d, facecolor=color, alpha=0.25)
+        ax.set_varlabels(spoke_labels)
 
     # add legend relative to top-left plot
-    # ax = axes[0, 0]
-    labels = ('Topic 1', 'Topic 2', 'Topic 3') #, 'Factor 4')#, 'Factor 5')
-    legend = ax.legend(labels, loc=(0.9, .95), labelspacing=0.1, fontsize='small')
+    ax = axes[0, 0]
+    labels = ('Factor 1', 'Factor 2', 'Factor 3', 'Factor 4', 'Factor 5')
+    legend = ax.legend(labels, loc=(0.9, .95),
+                       labelspacing=0.1, fontsize='small')
 
     fig.text(0.5, 0.965, 'Human Activity Topic Model Radar Plot',
              horizontalalignment='center', color='black', weight='bold',
              size='large')
 
     # plt.show()
-    plt.savefig('/tmp/topics.png', bbox_inches='tight')
+    fig.savefig('/tmp/topics.png', bbox_inches='tight')
 

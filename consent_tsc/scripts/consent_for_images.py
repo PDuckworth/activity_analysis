@@ -51,10 +51,10 @@ class ManageConsentWebpage(object):
     def teardown(self):
         self.user_consent_srv.shutdown()
         self.user_consent = None
-        http_root = os.path.join(roslib.packages.get_pkg_dir('tsc_robot_ui'), 'pages')
-        strands_webserver.client_utils.set_http_root(http_root)        
-        strands_webserver.client_utils.display_relative_page(self.display_no, 'index.html')
-
+        #http_root = os.path.join(roslib.packages.get_pkg_dir('tsc_robot_ui'), 'pages')
+        #strands_webserver.client_utils.set_http_root(http_root)        
+        #strands_webserver.client_utils.display_relative_page(self.display_no, 'index.html')
+        strands_webserver.client_utils.display_url(0, 'http://werner:8080/')
 
     def user_consent_received(self, req):
         print str(req)
@@ -102,10 +102,11 @@ class ManageConsentWebpage(object):
         
     def return_to_main_webpage_callback(self, req):
         print "return to main webpage"
-        http_root = os.path.join(roslib.packages.get_pkg_dir('tsc_robot_ui'), 'pages')
-        strands_webserver.client_utils.set_http_root(http_root)
-        strands_webserver.client_utils.display_relative_page(self.display_no, 'index.html')
+        #http_root = os.path.join(roslib.packages.get_pkg_dir('tsc_robot_ui'), 'pages')
+        #strands_webserver.client_utils.set_http_root(http_root)
+        #strands_webserver.client_utils.display_relative_page(self.display_no, 'index.html')
         # self.recording = False
+        strands_webserver.client_utils.display_url(0, 'http://werner:8080/')
         return EmptyResponse()       
         
         # else:
